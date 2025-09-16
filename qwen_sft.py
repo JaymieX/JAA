@@ -124,7 +124,7 @@ def main():
         gradient_steps=4,  # Effective batch size = 8 * 4 = 32
         epochs=2,  # Fewer epochs for large dataset
         learning_rate=5e-5,  # Lower LR for large dataset stability
-        max_seq_length=4096  # Longer sequences for complex code problems
+        max_seq_length=8192  # Longer sequences for complex code problems
     )
 
     print("\n=== Training Complete ===")

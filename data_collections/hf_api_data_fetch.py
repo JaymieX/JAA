@@ -20,7 +20,7 @@ def find_all_jsonl_files(hf_dir):
     return jsonl_files
 
 def combine_jsonl_files(jsonl_files, output_file):
-    """Combine all JSONL files into one output file"""
+    """Combine all JSONL files into one output file with standardized format"""
     if not jsonl_files:
         print("No JSONL files to combine")
         return 0
@@ -39,12 +39,26 @@ def combine_jsonl_files(jsonl_files, output_file):
                     for line in infile:
                         line = line.strip()
                         if line:  # Skip empty lines
-                            # Validate JSON
+                            # Validate and parse JSON
                             try:
-                                json.loads(line)
-                                outfile.write(line + '\n')
-                                lines_in_file += 1
+                                data = json.loads(line)
+
+                                # Transform to standardized format
                                 total_lines += 1
+                                raw_entry = {
+                                    "name": f"hf_api_{total_lines}",
+                                    "question": data.get("question", ""),
+                                    "solution": data.get("solution", ""),
+                                    "tags": ["AI", "LLM", "huggingface", "API"],
+                                    "difficulty": "unknown",
+                                    "language": "python",
+                                    "topic": ["AI", "LLM", "huggingface", "API"],
+                                    "time_complexity": "unknown"
+                                }
+
+                                outfile.write(json.dumps(raw_entry, ensure_ascii=False) + '\n')
+                                lines_in_file += 1
+
                             except json.JSONDecodeError as e:
                                 print(f"Skipping invalid JSON line in {jsonl_file}: {e}")
                                 continue

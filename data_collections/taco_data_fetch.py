@@ -48,18 +48,27 @@ def fetch_taco_data(num_samples=20):
             print(f"Skipping sample {idx} - no solutions found")
             continue
 
-        # Skip non-Python solutions
-        if not solution_code.strip().startswith(('def ', 'class ', 'import ', 'from ')) and 'def ' not in solution_code:
-            print(f"Skipping sample {idx} - not a Python solution")
-            continue
-
         # Parse tags and extract relevant metadata
         tags = sample.get("tags", [])
         if isinstance(tags, str):
-            try:
-                tags = json.loads(tags)
-            except json.JSONDecodeError:
+            # Handle string representation of Python lists
+            if tags.startswith('[') and tags.endswith(']'):
+                try:
+                    # Use eval to parse Python list strings like "['Sorting', 'Data structures']"
+                    tags = eval(tags)
+                except:
+                    # If eval fails, try json.loads
+                    try:
+                        tags = json.loads(tags)
+                    except json.JSONDecodeError:
+                        tags = [tags] if tags else []
+            else:
+                # Single string tag
                 tags = [tags] if tags else []
+
+        # Ensure tags is always a list
+        if not isinstance(tags, list):
+            tags = [str(tags)] if tags else []
 
         difficulty = sample.get("difficulty", "unknown").lower()
 

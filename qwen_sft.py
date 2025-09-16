@@ -119,7 +119,7 @@ def main():
     # Start fine-tuning optimized for V100 48GB with 19647 entries
     model, tokenizer = fine_tune_qwen_model(
         model_name="unsloth/Qwen2.5-7B-Instruct",
-        output_dir="Qwen2.5-7B-cs-helper-finetuned",
+        output_dir="Qwen2.5-7B-cs-coder-finetuned",
         batch_size=8,  # Larger batch size for V100 48GB
         gradient_steps=4,  # Effective batch size = 8 * 4 = 32
         epochs=2,  # Fewer epochs for large dataset
@@ -128,7 +128,7 @@ def main():
     )
 
     print("\n=== Training Complete ===")
-    print("Model saved to: Qwen2.5-7B-cs-helper-finetuned")
+    print("Model saved to: Qwen2.5-7B-cs-coder-finetuned")
 
 if __name__ == "__main__":
     main()

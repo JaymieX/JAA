@@ -1,0 +1,4 @@
+[data]
+# Data storage locations
+base_dir = "data"
+raw_dir = "data/raw"

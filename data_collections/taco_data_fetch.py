@@ -1,9 +1,15 @@
 import json
 import random
-from datasets import load_dataset
+import sys
 from pathlib import Path
 
-def fetch_taco_data(num_samples=20, output_file="data/taco_raw.jsonl"):
+# Add parent directory to path to import settings
+sys.path.append(str(Path(__file__).parent.parent))
+from settings import config
+
+from datasets import load_dataset
+
+def fetch_taco_data(num_samples=20):
     """
     Fetch random samples from TACO dataset and save raw data
     """
@@ -68,9 +74,8 @@ def fetch_taco_data(num_samples=20, output_file="data/taco_raw.jsonl"):
         raw_data.append(raw_entry)
         print(f"Processed sample {i + 1}/{num_samples}")
 
-    # Ensure output directory exists
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Get output file path from config
+    output_file = config.get_raw_file_path("taco_raw.jsonl")
 
     # Write to JSONL file
     with open(output_file, 'w', encoding='utf-8') as f:

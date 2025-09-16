@@ -3,6 +3,9 @@ import json
 import sys
 from pathlib import Path
 from transformers import BitsAndBytesConfig, pipeline
+from transformers.pipelines.pt_utils import KeyDataset
+from datasets import Dataset
+from tqdm.auto import tqdm
 
 # Add parent directory to path to import settings
 sys.path.append(str(Path(__file__).parent.parent))
@@ -13,45 +16,23 @@ SYSTEM_PROMPT = {
     "content": "You are an expert programming instructor. For each coding problem, provide a comprehensive solution following this exact format:\n\n1) Plan\n2) Pseudocode\n3) Dry Run Trace\n4) Final Code (Python)\n5) Complexity\n6) Common Mistakes\n\nBe detailed and educational in your explanations."
 }
 
-def generate_solution(llm, problem_data, temperature=0.7, top_p=0.95, max_new_tokens=1500):
-    """Generate structured solution using Qwen model"""
-
-    # Prepare user prompt with problem and reference solution
-    user_content = f"""Problem: {problem_data['question']}
+def format_prompt(example):
+    """Format problem data into prompt for the model"""
+    user_content = f"""Problem: {example['question']}
 
 Reference Solution:
 ```python
-{problem_data['solution']}
+{example['solution']}
 ```
 
 Please provide a comprehensive educational solution following the 6-step format."""
 
-    user_text = [{"role": "user", "content": user_content}]
-
     # Combine system prompt with user text
-    prompt_context = [SYSTEM_PROMPT] + user_text
+    prompt_context = [SYSTEM_PROMPT, {"role": "user", "content": user_content}]
 
-    # Apply chat template
-    prompt = llm.tokenizer.apply_chat_template(
-        prompt_context,
-        tokenize=False,
-        add_generation_prompt=True
-    )
-
-    # Generate response
-    outputs = llm(prompt,
-                 max_new_tokens=max_new_tokens,
-                 do_sample=True,
-                 temperature=temperature,
-                 top_p=top_p,
-                 return_full_text=False,
-                 eos_token_id=[
-                     llm.tokenizer.eos_token_id,
-                     llm.tokenizer.convert_tokens_to_ids("<|im_end|>")],
-                 pad_token_id=llm.tokenizer.eos_token_id
-    )
-
-    return outputs[0]["generated_text"].strip()
+    # Store formatted prompt in the example
+    example['formatted_prompt'] = prompt_context
+    return example
 
 def load_seen_sft_names():
     """Load already processed SFT names to avoid duplicates"""
@@ -70,8 +51,8 @@ def load_seen_sft_names():
     print(f"Loaded {len(seen_names)} previously processed SFT names")
     return seen_names
 
-def process_taco_to_sft(llm, num_samples=None):
-    """Process TACO raw data into SFT format using Qwen model"""
+def process_taco_to_sft_batch(llm, num_samples=None, batch_size=8):
+    """Process TACO raw data into SFT format using Qwen model with batch processing"""
 
     # Load raw data
     raw_file = config.get_raw_file_path("taco_raw.jsonl")
@@ -102,18 +83,61 @@ def process_taco_to_sft(llm, num_samples=None):
 
     print(f"Processing {len(samples_to_process)} new samples...")
 
+    if not samples_to_process:
+        print("No new samples to process!")
+        return 0
+
+    # Convert to HuggingFace Dataset for efficient batch processing
+    dataset = Dataset.from_list(samples_to_process)
+
+    # Format prompts for all samples
+    print("Formatting prompts...")
+    dataset = dataset.map(format_prompt, batched=False)
+
+    # Create custom dataset field for pipeline input
+    def create_pipeline_input(example):
+        # Apply chat template to get the final prompt string
+        prompt = llm.tokenizer.apply_chat_template(
+            example['formatted_prompt'],
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        example['pipeline_input'] = prompt
+        return example
+
+    dataset = dataset.map(create_pipeline_input, batched=False)
+
     # Output files
     sft_file = config.get_raw_file_path("taco_sft.jsonl")
     seen_file = config.get_raw_file_path("taco_sft_seen.jsonl")
 
+    print(f"Starting batch processing with batch_size={batch_size}...")
+
+    # Process with batch pipeline
     processed_count = 0
+    results = []
 
-    for i, sample in enumerate(samples_to_process):
-        print(f"\nProcessing {i+1}/{len(samples_to_process)}: {sample.get('name', 'unnamed')}")
-
+    # Use KeyDataset for efficient pipeline processing
+    for i, (sample, output) in enumerate(tqdm(
+        zip(samples_to_process,
+            llm(KeyDataset(dataset, "pipeline_input"),
+                batch_size=batch_size,
+                max_new_tokens=1500,
+                do_sample=True,
+                temperature=0.7,
+                top_p=0.95,
+                return_full_text=False,
+                eos_token_id=[
+                    llm.tokenizer.eos_token_id,
+                    llm.tokenizer.convert_tokens_to_ids("<|im_end|>")
+                ],
+                pad_token_id=llm.tokenizer.eos_token_id
+            )),
+        total=len(samples_to_process),
+        desc="Generating solutions"
+    )):
         try:
-            # Generate structured solution using Qwen
-            generated_response = generate_solution(llm, sample)
+            generated_response = output[0]["generated_text"].strip()
 
             # Create SFT format
             system_content = "You are a helpful programming assistant. Help solve coding problems step by step with detailed explanations."
@@ -127,21 +151,24 @@ def process_taco_to_sft(llm, num_samples=None):
                 "name": sample.get("name", f"problem_{i}")
             }
 
-            # Append to SFT file
-            with open(sft_file, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(sft_entry, ensure_ascii=False) + '\n')
-
-            # Track processed name
-            with open(seen_file, 'a', encoding='utf-8') as f:
-                seen_entry = {"name": sample.get("name", f"problem_{i}")}
-                f.write(json.dumps(seen_entry, ensure_ascii=False) + '\n')
-
+            results.append(sft_entry)
             processed_count += 1
-            print(f"✓ Successfully processed: {sample.get('name', 'unnamed')}")
 
         except Exception as e:
             print(f"✗ Error processing {sample.get('name', 'unnamed')}: {e}")
             continue
+
+    # Write all results at once for better performance
+    print(f"\nWriting {len(results)} results to files...")
+
+    with open(sft_file, 'a', encoding='utf-8') as f:
+        for entry in results:
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+    with open(seen_file, 'a', encoding='utf-8') as f:
+        for entry in results:
+            seen_entry = {"name": entry["name"]}
+            f.write(json.dumps(seen_entry, ensure_ascii=False) + '\n')
 
     print(f"\n✓ SFT data generation complete!")
     print(f"Processed: {processed_count} samples")
@@ -151,28 +178,23 @@ def process_taco_to_sft(llm, num_samples=None):
 def main():
     """Main function to load model and process data"""
 
-    # Configure quantization for memory efficiency
-    quantization_config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        bnb_8bit_compute_dtype=torch.float16,
-    )
+    print("Loading Qwen model at full precision...")
 
-    print("Loading Qwen model...")
-
-    # Load Qwen model
+    # Load Qwen model without quantization for full performance
     llm = pipeline(
         "text-generation",
         model="Qwen/Qwen2.5-7B-Instruct",
         model_kwargs={
-            "quantization_config": quantization_config,
+            "torch_dtype": torch.float16,  # Use FP16 for speed while maintaining quality
             "device_map": "auto",
         }
     )
 
     print("Model loaded successfully!")
 
-    # Process all samples (set num_samples=10 for testing)
-    count = process_taco_to_sft(llm, num_samples=None)
+    # Process all samples using optimized batch processing
+    # Start with smaller batch_size (4-8) and increase if GPU memory allows
+    count = process_taco_to_sft_batch(llm, num_samples=None, batch_size=4)
     print(f"SFT data generation complete: {count} samples processed")
 
 if __name__ == "__main__":

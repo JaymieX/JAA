@@ -26,6 +26,10 @@ class Config:
         # Create raw data directory
         raw_dir = Path(data_config.get("raw_dir", "data/raw"))
         raw_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create raw temp directory
+        temp_dir = Path(data_config.get("temp_dir", "temp"))
+        temp_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"Initialized directories: {base_dir}, {raw_dir}")
 
@@ -38,10 +42,19 @@ class Config:
     def data_raw_dir(self):
         """Get raw data directory path"""
         return Path(self.config["data"]["raw_dir"])
+    
+    @property
+    def data_temp_dir(self):
+        """Get temp data directory path"""
+        return Path(self.config["data"]["temp_dir"])
 
     def get_raw_file_path(self, filename):
         """Get full path for a file in the raw data directory"""
         return self.data_raw_dir / filename
+    
+    def get_temp_file_path(self, filename):
+        """Get full path for a file in the temp data directory"""
+        return self.data_temp_dir / filename
 
 # Global config instance
 config = Config()

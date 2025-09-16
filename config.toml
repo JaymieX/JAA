@@ -2,3 +2,4 @@
 # Data storage locations
 base_dir = "data"
 raw_dir = "data/raw"
+temp_dir = "temp"

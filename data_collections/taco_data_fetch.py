@@ -48,6 +48,11 @@ def fetch_taco_data(num_samples=20):
             print(f"Skipping sample {idx} - no solutions found")
             continue
 
+        # Skip non-Python solutions
+        if not solution_code.strip().startswith(('def ', 'class ', 'import ', 'from ')) and 'def ' not in solution_code:
+            print(f"Skipping sample {idx} - not a Python solution")
+            continue
+
         # Parse tags and extract relevant metadata
         tags = sample.get("tags", [])
         if isinstance(tags, str):

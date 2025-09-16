@@ -83,11 +83,18 @@ def fine_tune_qwen_model(
             learning_rate=learning_rate,
             fp16=False,
             bf16=True,
-            logging_steps=50,
-            save_strategy="epoch",
+            logging_steps=25,  # More frequent logging for large dataset
+            save_strategy="steps",  # Save by steps instead of epochs
+            save_steps=500,  # Save every 500 steps
+            eval_strategy="steps",
+            eval_steps=500,  # Evaluate every 500 steps
             optim="adamw_8bit",  # Use 8-bit Adam optimizer
-            warmup_steps=10,
-            save_total_limit=2,
+            warmup_steps=100,  # More warmup steps for large dataset
+            save_total_limit=3,  # Keep more checkpoints
+            dataloader_num_workers=4,  # Faster data loading
+            remove_unused_columns=False,
+            group_by_length=True,  # Group similar length sequences for efficiency
+            report_to="none",  # Disable wandb/tensorboard to save memory
         )
     )
 
@@ -109,15 +116,15 @@ def main():
     print(f"Model: unsloth/Qwen2.5-7B-Instruct")
     print()
 
-    # Start fine-tuning with default parameters
+    # Start fine-tuning optimized for V100 48GB with 19647 entries
     model, tokenizer = fine_tune_qwen_model(
         model_name="unsloth/Qwen2.5-7B-Instruct",
         output_dir="Qwen2.5-7B-cs-helper-finetuned",
-        batch_size=2,  # Smaller batch size for 7B model
-        gradient_steps=8,  # Higher gradient accumulation
-        epochs=3,
-        learning_rate=2e-4,
-        max_seq_length=2048
+        batch_size=8,  # Larger batch size for V100 48GB
+        gradient_steps=4,  # Effective batch size = 8 * 4 = 32
+        epochs=2,  # Fewer epochs for large dataset
+        learning_rate=5e-5,  # Lower LR for large dataset stability
+        max_seq_length=4096  # Longer sequences for complex code problems
     )
 
     print("\n=== Training Complete ===")

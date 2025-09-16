@@ -3,15 +3,36 @@ import random
 import sys
 from pathlib import Path
 
+# Set higher limit for large integers in test cases
+sys.set_int_max_str_digits(100000)
+
 # Add parent directory to path to import settings
 sys.path.append(str(Path(__file__).parent.parent))
 from settings import config
 
 from datasets import load_dataset
 
-def fetch_taco_data(num_samples=20):
+def load_seen_names():
+    """Load already processed names from taco_raw_seen.jsonl"""
+    seen_file = config.get_raw_file_path("taco_raw_seen.jsonl")
+    seen_names = set()
+
+    if seen_file.exists():
+        with open(seen_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = json.loads(line.strip())
+                    seen_names.add(data.get("name", ""))
+                except json.JSONDecodeError:
+                    continue
+
+    print(f"Loaded {len(seen_names)} previously processed names")
+    return seen_names
+
+def fetch_taco_data(num_samples=None):
     """
-    Fetch random samples from TACO dataset and save raw data
+    Fetch samples from TACO dataset and save raw data
+    If num_samples is None, process the entire dataset
     """
     print(f"Loading TACO dataset...")
 
@@ -24,14 +45,29 @@ def fetch_taco_data(num_samples=20):
 
     print(f"Dataset loaded with {len(ds)} samples")
 
-    # Get random indices
-    random_indices = random.sample(range(len(ds)), min(num_samples, len(ds)))
+    # Load previously seen names
+    seen_names = load_seen_names()
+
+    # Determine which samples to process
+    if num_samples is None:
+        indices = range(len(ds))
+        print("Processing entire dataset...")
+    else:
+        indices = random.sample(range(len(ds)), min(num_samples, len(ds)))
+        print(f"Processing {len(indices)} random samples...")
 
     # Prepare output data
     raw_data = []
+    skipped_count = 0
 
-    for i, idx in enumerate(random_indices):
+    for i, idx in enumerate(indices):
         sample = ds[idx]
+
+        # Get problem name and check if already processed
+        problem_name = sample.get("id", f"problem_{idx}")
+        if problem_name in seen_names:
+            skipped_count += 1
+            continue
 
         # Parse JSON fields
         try:
@@ -75,34 +111,51 @@ def fetch_taco_data(num_samples=20):
         # Determine primary topic from tags
         topic = tags[0] if tags else "general"
 
+        # Get time complexity if available
+        time_complexity = sample.get("time_complexity", "unknown")
+
         # Create raw data entry
         raw_entry = {
+            "name": problem_name,
             "question": sample["question"],
             "solution": solution_code,
             "tags": tags,
             "difficulty": difficulty,
             "language": "python",
-            "topic": topic
+            "topic": topic,
+            "time_complexity": time_complexity
         }
 
         raw_data.append(raw_entry)
         print(f"Processed sample {i + 1}/{num_samples}")
 
-    # Get output file path from config
+    # Get output file paths from config
     output_file = config.get_raw_file_path("taco_raw.jsonl")
+    seen_file = config.get_raw_file_path("taco_raw_seen.jsonl")
 
-    # Write to JSONL file
-    with open(output_file, 'w', encoding='utf-8') as f:
+    # Write to JSONL file (append mode to preserve existing data)
+    with open(output_file, 'a', encoding='utf-8') as f:
         for entry in raw_data:
             f.write(json.dumps(entry, ensure_ascii=False) + '\n')
 
-    print(f"Successfully wrote {len(raw_data)} samples to {output_file}")
+    # Write to seen file (append mode to track processed names)
+    with open(seen_file, 'a', encoding='utf-8') as f:
+        for entry in raw_data:
+            seen_entry = {"name": entry["name"]}
+            f.write(json.dumps(seen_entry, ensure_ascii=False) + '\n')
+
+    total_processed = len(indices)
+    print(f"Processed {total_processed} samples:")
+    print(f"  - New samples written: {len(raw_data)}")
+    print(f"  - Skipped (already seen): {skipped_count}")
+    print(f"  - Skipped (other reasons): {total_processed - len(raw_data) - skipped_count}")
+    print(f"Output written to: {output_file}")
     return len(raw_data)
 
 if __name__ == "__main__":
     # Set random seed for reproducibility
     random.seed(42)
 
-    # Fetch 20 random samples
-    count = fetch_taco_data(num_samples=20)
-    print(f"Data collection complete: {count} samples saved")
+    # Process entire dataset (set to None for full dataset)
+    count = fetch_taco_data(num_samples=None)
+    print(f"Data collection complete: {count} new samples saved")

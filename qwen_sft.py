@@ -86,8 +86,6 @@ def fine_tune_qwen_model(
             logging_steps=25,  # More frequent logging for large dataset
             save_strategy="steps",  # Save by steps instead of epochs
             save_steps=500,  # Save every 500 steps
-            eval_strategy="steps",
-            eval_steps=500,  # Evaluate every 500 steps
             optim="adamw_8bit",  # Use 8-bit Adam optimizer
             warmup_steps=100,  # More warmup steps for large dataset
             save_total_limit=3,  # Keep more checkpoints

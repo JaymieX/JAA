@@ -183,3 +183,4 @@ cython_debug/
 # Project
 data/
 temp/
+model/

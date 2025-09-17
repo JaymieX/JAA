@@ -36,8 +36,8 @@ USER_TMPL = (
     "Candidate fix code:\n{fix_code}\n"
 )
 
-def format_prompt(example):
-    """Format vulnerability data into prompt for the model"""
+def create_pipeline_input(example, tokenizer):
+    """Create pipeline input string directly from raw data"""
     user_content = USER_TMPL.format(
         lang=example.get('lang', 'unknown'),
         vuln=example.get('vulnerability', ''),
@@ -45,12 +45,20 @@ def format_prompt(example):
         fix_code=example.get('chosen', '')      # fixed code
     )
 
-    # Combine system prompt with user text
-    prompt_context = [SYSTEM_PROMPT, {"role": "user", "content": user_content}]
+    # Create prompt context for chat template
+    prompt_context = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_content}
+    ]
 
-    # Store formatted prompt in the example
-    example['formatted_prompt'] = prompt_context
-    return example
+    # Apply chat template to get the final prompt string
+    prompt = tokenizer.apply_chat_template(
+        prompt_context,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+
+    return prompt
 
 def load_seen_sft_names():
     """Load already processed SFT names to avoid duplicates"""
@@ -107,25 +115,12 @@ def process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4):
         print("No new samples to process!")
         return 0
 
-    # Convert to HuggingFace Dataset for efficient batch processing
-    dataset = Dataset.from_list(samples_to_process)
-
-    # Format prompts for all samples
-    print("Formatting prompts...")
-    dataset = dataset.map(format_prompt, batched=False)
-
-    # Create custom dataset field for pipeline input
-    def create_pipeline_input(example):
-        # Apply chat template to get the final prompt string
-        prompt = llm.tokenizer.apply_chat_template(
-            example['formatted_prompt'],
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        example['pipeline_input'] = prompt
-        return example
-
-    dataset = dataset.map(create_pipeline_input, batched=False)
+    # Prepare pipeline inputs directly without storing in dataset
+    print("Preparing pipeline inputs...")
+    pipeline_inputs = []
+    for sample in samples_to_process:
+        prompt = create_pipeline_input(sample, llm.tokenizer)
+        pipeline_inputs.append(prompt)
 
     # Output files
     sft_file = config.get_raw_file_path("code_vlun_sft.jsonl")
@@ -137,13 +132,13 @@ def process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4):
     processed_count = 0
     results = []
 
-    # Use KeyDataset for efficient pipeline processing
+    # Process with pipeline using direct inputs
     for i, (sample, output) in enumerate(tqdm(
         zip(samples_to_process,
-            llm(KeyDataset(dataset, "pipeline_input"),
+            llm(pipeline_inputs,
                 batch_size=batch_size,
                 max_new_tokens=1000,  # Shorter for JSON format
-                do_sample=True,
+                do_sample=False,
                 temperature=0.3,  # Lower for more consistent JSON
                 top_p=0.9,
                 return_full_text=False,

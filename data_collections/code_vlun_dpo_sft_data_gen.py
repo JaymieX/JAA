@@ -28,16 +28,21 @@ SYSTEM_PROMPT = (
     "- Escape newlines in patched_code with \\n. No markdown or fences."
 )
 
+USER_TMPL = (
+    "Language: {lang}\n"
+    "Vulnerability hint: {vuln}\n"
+    "Vulnerable code:\n{vuln_code}\n"
+    "Candidate fix code:\n{fix_code}\n"
+)
+
 def format_prompt(example):
-    """Format problem data into prompt for the model"""
-    user_content = f"""Problem: {example['question']}
-
-Reference Solution:
-```python
-{example['solution']}
-```
-
-Please provide a comprehensive educational solution following the 6-step format."""
+    """Format vulnerability data into prompt for the model"""
+    user_content = USER_TMPL.format(
+        lang=example.get('lang', 'unknown'),
+        vuln=example.get('vulnerability', ''),
+        vuln_code=example.get('rejected', ''),  # vulnerable code
+        fix_code=example.get('chosen', '')      # fixed code
+    )
 
     # Combine system prompt with user text
     prompt_context = [SYSTEM_PROMPT, {"role": "user", "content": user_content}]
@@ -48,7 +53,7 @@ Please provide a comprehensive educational solution following the 6-step format.
 
 def load_seen_sft_names():
     """Load already processed SFT names to avoid duplicates"""
-    seen_file = config.get_raw_file_path("taco_sft_seen.jsonl")
+    seen_file = config.get_raw_file_path("code_vlun_sft_seen.jsonl")
     seen_names = set()
 
     if seen_file.exists():
@@ -63,11 +68,11 @@ def load_seen_sft_names():
     print(f"Loaded {len(seen_names)} previously processed SFT names")
     return seen_names
 
-def process_taco_to_sft_batch(llm, num_samples=None, batch_size=8):
-    """Process TACO raw data into SFT format using Qwen model with batch processing"""
+def process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4):
+    """Process Code Vulnerability DPO data into SFT format using Qwen model with batch processing"""
 
     # Load raw data
-    raw_file = config.get_raw_file_path("taco_raw.jsonl")
+    raw_file = config.get_raw_file_path("code_vlun_dpo_raw.jsonl")
     if not raw_file.exists():
         print(f"Raw data file not found: {raw_file}")
         return 0
@@ -78,9 +83,11 @@ def process_taco_to_sft_batch(llm, num_samples=None, batch_size=8):
     # Read all raw data
     raw_data = []
     with open(raw_file, 'r', encoding='utf-8') as f:
-        for line in f:
+        for i, line in enumerate(f):
             try:
                 data = json.loads(line.strip())
+                # Add unique name for tracking
+                data['name'] = f"code_vlun_{i+1}"
                 raw_data.append(data)
             except json.JSONDecodeError:
                 continue
@@ -120,8 +127,8 @@ def process_taco_to_sft_batch(llm, num_samples=None, batch_size=8):
     dataset = dataset.map(create_pipeline_input, batched=False)
 
     # Output files
-    sft_file = config.get_raw_file_path("taco_sft.jsonl")
-    seen_file = config.get_raw_file_path("taco_sft_seen.jsonl")
+    sft_file = config.get_raw_file_path("code_vlun_sft.jsonl")
+    seen_file = config.get_raw_file_path("code_vlun_sft_seen.jsonl")
 
     print(f"Starting batch processing with batch_size={batch_size}...")
 
@@ -146,21 +153,28 @@ def process_taco_to_sft_batch(llm, num_samples=None, batch_size=8):
                 pad_token_id=llm.tokenizer.eos_token_id
             )),
         total=len(samples_to_process),
-        desc="Generating solutions"
+        desc="Generating vulnerability analysis"
     )):
         try:
             generated_response = output[0]["generated_text"].strip()
 
             # Create SFT format
-            system_content = "You are a helpful programming assistant. Help solve coding problems step by step with detailed explanations."
-            user_content = f"Problem: {sample['question']}"
+            system_content = "You are a cybersecurity expert. Analyze vulnerable code and provide detailed security analysis and fixes."
+
+            user_content = USER_TMPL.format(
+                lang=sample.get('lang', 'unknown'),
+                vuln=sample.get('vulnerability', ''),
+                vuln_code=sample.get('rejected', ''),  # vulnerable code
+                fix_code=sample.get('chosen', '')      # fixed code
+            )
+
             assistant_content = generated_response
 
-            conversation_text = f"<|system|>{system_content}<|user|>{user_content}<|assistant|>{assistant_content}"
+            conversation_text = f"<|system|>{system_content}<|user|>{user_content}<|assistant|>{assistant_content}<|endoftext|>"
 
             sft_entry = {
                 "text": conversation_text,
-                "name": sample.get("name", f"problem_{i}")
+                "name": sample.get("name", f"code_vlun_{i}")
             }
 
             results.append(sft_entry)
@@ -206,7 +220,7 @@ def main():
 
     # Process all samples using optimized batch processing
     # Start with smaller batch_size (4-8) and increase if GPU memory allows
-    count = process_taco_to_sft_batch(llm, num_samples=None, batch_size=4)
+    count = process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4)
     print(f"SFT data generation complete: {count} samples processed")
 
 if __name__ == "__main__":

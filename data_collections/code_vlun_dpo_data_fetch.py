@@ -7,6 +7,22 @@ from datasets import load_dataset
 sys.path.append(str(Path(__file__).parent.parent))
 from settings import config
 
+def remove_code_fences(text):
+    """Remove code fences (```) from text content"""
+    if not text:
+        return text
+
+    # Remove triple backticks with optional language specifiers
+    import re
+    # Remove opening fences like ```python, ```c++, ```
+    text = re.sub(r'^```[a-zA-Z0-9]*\n?', '', text, flags=re.MULTILINE)
+    # Remove closing fences
+    text = re.sub(r'\n?```$', '', text, flags=re.MULTILINE)
+    # Remove any remaining standalone ```
+    text = re.sub(r'^```$', '', text, flags=re.MULTILINE)
+
+    return text.strip()
+
 def fetch_code_vulnerability_data():
     """Fetch Code Vulnerability Security DPO dataset and save filtered data"""
 
@@ -31,12 +47,12 @@ def fetch_code_vulnerability_data():
     with open(output_file, 'w', encoding='utf-8') as f:
         for i, sample in enumerate(dataset):
             try:
-                # Extract only the required fields
+                # Extract and clean the required fields
                 filtered_entry = {
                     "lang": sample.get("lang", ""),
                     "vulnerability": sample.get("vulnerability", ""),
-                    "chosen": sample.get("chosen", ""),
-                    "rejected": sample.get("rejected", "")
+                    "chosen": remove_code_fences(sample.get("chosen", "")),
+                    "rejected": remove_code_fences(sample.get("rejected", ""))
                 }
 
                 # Skip entries with missing essential data

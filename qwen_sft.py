@@ -63,10 +63,13 @@ def fine_tune_qwen_model(
         dataset_file = config.get_raw_file_path("sft_all.jsonl")
 
     print(f"Loading dataset: {dataset_file}")
-    # Load our SFT dataset
+    # Load our SFT dataset with shuffling
     dataset = load_dataset("json", data_files=str(dataset_file), split="train")
 
-    print(f"Dataset size: {len(dataset)} samples")
+    # Shuffle dataset with fixed seed for reproducibility
+    dataset = dataset.shuffle(seed=42)
+
+    print(f"Dataset size: {len(dataset)} samples (shuffled)")
 
     # Initialize the trainer for Supervised Fine-Tuning (SFT)
     trainer = SFTTrainer(
@@ -110,11 +113,11 @@ def main():
     """Main function to start SFT training"""
 
     print("=== Qwen2.5-7B-Instruct SFT Training ===")
-    print(f"Dataset: {config.get_raw_file_path('sft_all.jsonl')}")
+    print(f"Dataset: {config.get_raw_file_path('sft_cve.jsonl')}")
     print(f"Model: unsloth/Qwen2.5-7B-Instruct")
     print()
 
-    # Start fine-tuning optimized for V100 48GB with 19647 entries
+    # Start fine-tuning optimized for V100 48GB
     model, tokenizer = fine_tune_qwen_model(
         model_name="unsloth/Qwen2.5-7B-Instruct",
         output_dir="Qwen2.5-7B-cs-coder-finetuned",

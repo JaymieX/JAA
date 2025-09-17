@@ -23,8 +23,8 @@ def convert_dpo_to_sft():
     print(f"Output: {output_file}")
 
     system_content = (
-        "You are a helpful programming assistant. "
-        "Given a possible vulnerability description and a code snippet, "
+        "You are a helpful cyber security programming assistant. "
+        "Given a vulnerable code snippet, "
         "output only the corrected code. "
         "Do not include explanations, markdown, or extra text."
     )

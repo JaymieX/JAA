@@ -25,6 +25,7 @@ SYSTEM_PROMPT = (
     "- Analyze the vulnerable_code; treat candidate_fix_code only as a suggestion.\n"
     "- If the candidate fix is unsafe/incomplete, replace it with a safer patch.\n"
     "- Cite concrete lines/patterns in evidence; if unknown, use [] or empty strings.\n"
+    "- Keep exploit_scenario and why_bad short and concise\n"
     "- Escape newlines in patched_code with \\n. No markdown or fences."
 )
 
@@ -141,10 +142,10 @@ def process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4):
         zip(samples_to_process,
             llm(KeyDataset(dataset, "pipeline_input"),
                 batch_size=batch_size,
-                max_new_tokens=1500,
+                max_new_tokens=1000,  # Shorter for JSON format
                 do_sample=True,
-                temperature=0.7,
-                top_p=0.95,
+                temperature=0.3,  # Lower for more consistent JSON
+                top_p=0.9,
                 return_full_text=False,
                 eos_token_id=[
                     llm.tokenizer.eos_token_id,
@@ -159,7 +160,7 @@ def process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4):
             generated_response = output[0]["generated_text"].strip()
 
             # Create SFT format
-            system_content = "You are a cybersecurity expert. Analyze vulnerable code and provide detailed security analysis and fixes."
+            system_content = SYSTEM_PROMPT
 
             user_content = USER_TMPL.format(
                 lang=sample.get('lang', 'unknown'),
@@ -206,21 +207,24 @@ def main():
 
     print("Loading Qwen model at full precision...")
 
-    # Load Qwen model without quantization for full performance
+    # Load Qwen model optimized for V100 48GB performance
     llm = pipeline(
         "text-generation",
         model="Qwen/Qwen2.5-7B-Instruct",
         model_kwargs={
             "torch_dtype": torch.float16,  # Use FP16 for speed while maintaining quality
             "device_map": "auto",
-        }
+        },
+        # Pipeline optimizations for V100
+        batch_size=12,  # Default batch size for pipeline
+        max_length=None,  # No hard limit, let model decide
     )
 
     print("Model loaded successfully!")
 
-    # Process all samples using optimized batch processing
-    # Start with smaller batch_size (4-8) and increase if GPU memory allows
-    count = process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=4)
+    # Process all samples optimized for V100 48GB
+    # Larger batch size for better GPU utilization
+    count = process_vulnerability_to_sft_batch(llm, num_samples=None, batch_size=12)
     print(f"SFT data generation complete: {count} samples processed")
 
 if __name__ == "__main__":

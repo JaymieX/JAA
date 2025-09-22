@@ -168,7 +168,7 @@ async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     if is_local:
-        uvicorn.run("server_api:app", host="127.0.0.1", port=8000, reload=True)
+        uvicorn.run("server_api:app", host="127.0.0.1", port=8000, reload=False)
     else:
         uvicorn.run("server_api:app", host="0.0.0.0", port=8000, reload=False)
     

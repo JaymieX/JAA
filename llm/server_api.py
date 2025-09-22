@@ -12,7 +12,7 @@ import uvicorn
 
 from asr import Asr, ModelSize
 from llm import LLM, LLMProFile
-from tts_engine import TTSEngine
+#from tts_engine import TTSEngine
 
 
 is_local = True
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     app.state.llm = LLM(llm_profile, os.getenv('MY_NOTION_TOKEN'), os.getenv('MY_NOTION_PAGE_ID'))
     
     # --- Loading TTS ---
-    app.state.tts = TTSEngine()
+    # app.state.tts = TTSEngine()
     
     yield
 
@@ -122,6 +122,7 @@ async def chat_endpoint(request: Request, user_text: str = Form(...)):
     })
 
 
+"""
 @app.post("/voice-chat/")
 async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
     audio_bytes = await file.read()
@@ -162,6 +163,7 @@ async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
             status_code=500,
             content={"error": "Failed to generate audio response."}
         )
+"""
 
 if __name__ == "__main__":
     if is_local:

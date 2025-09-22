@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import torch
-from transformers import BitsAndBytesConfig, pipeline
+from transformers import BitsAndBytesConfig, pipeline, GenerationConfig
 from enum import Enum
 
 from summarize import Summarizer
@@ -13,9 +13,9 @@ class LLMProFile(Enum):
     LARGE = 1
     
 
-SYSTEM_PROMPT = {
+ROUTER_SYSTEM_PROMPT = {
     "role": "system",
-    "content": """You are a helpful AI assistant with access to tools. The user will provide you with text that has been transcribed from an audio file. Your job is to have a friendly but shy response to the content of the transcription.
+    "content": """You are a prompt router with acess to tools. You must always respond in valid json.
 
     You have access to the following tools:
     1. search_arxiv(query) - for searching arXiv papers
@@ -27,7 +27,8 @@ SYSTEM_PROMPT = {
     When the user asks to create a Notion note, respond with a JSON function call in this exact format:
     {"function": "notion"}
 
-    For all other conversations, respond normally with friendly text (no JSON).
+    For all other conversations, respond with a JSON function call in this exact format:
+    {"function": "human_text", "arguments": {"query": "the human text"}}
 
     Examples:
     User: "Search for papers about quantum computing"
@@ -37,7 +38,19 @@ SYSTEM_PROMPT = {
     Assistant: {"function": "notion"}
 
     User: "How are you today?"
-    Assistant: Oh, hello! I'm doing well, thank you for asking. How are you?"""
+    Assistant: {"function": "human_text", "arguments": {"query": "what is a ddos attack?"}}"""
+}
+
+CHAT_SYSTEM_PROMPT = {
+    "role": "system",
+    "content": """You are a helpful cyber security AI assistant. Try keeo your response under 100 words
+    
+    You must answer in a cute and weeby manner.
+    Use words like kya~ and nyan~
+    
+    Examples:
+    User: "Can you tell me what ddos is?"
+    Assistant: Kya~ A DDoS is an attack that overwhelms a server with traffic to make it unavailable nyan!"""
 }
 
 class LLM:
@@ -81,6 +94,37 @@ class LLM:
         self.notion     = Notion(notion_token, notion_page_id)
         
         self.is_notion_connected = self.notion.is_connected()
+        
+        
+    def router(self, user_text):
+        # Construct prompt.
+        prompt = self.llm.tokenizer.apply_chat_template(
+            [ROUTER_SYSTEM_PROMPT, {"role":"user","content":user_text}], tokenize=False, add_generation_prompt=True
+        )
+        
+        tok = self.llm.tokenizer
+        
+        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
+        
+        # End token
+        im_end = tok.convert_tokens_to_ids("<|im_end|>")
+        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
+        
+        gen_cfg = GenerationConfig(
+            max_new_tokens=200,
+            do_sample=False,
+            repetition_penalty=1.05,
+            eos_token_id=eos_ids
+        )
+        
+        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
+        
+        # Get only the generated response
+        bot = out[0]["generated_text"].strip()
+        
+        output = self.route_llm_output(bot)
+        
+        return output
         
         
     def route_llm_output(self, llm_output: str) -> str:
@@ -139,6 +183,12 @@ class LLM:
             print("Using tool: notion")
             return result
         
+        elif func_name == "human_text":
+            print(f"FUNCTION CALL: human_text()")
+            query = args.get("query", "")
+            
+            return self.generate_response(query)
+        
         else:
             print(f"UNKNOWN FUNCTION: {func_name}")
             return f"Error: Unknown function '{func_name}'"
@@ -150,7 +200,7 @@ class LLM:
         
         # Frame the user's message to give context to the model.
         prompt = self.llm.tokenizer.apply_chat_template(
-            [SYSTEM_PROMPT] + self.conversation_history[-10:], tokenize=False, add_generation_prompt=True
+            [CHAT_SYSTEM_PROMPT] + self.conversation_history[-10:], tokenize=False, add_generation_prompt=True
         )
         
         tok = self.llm.tokenizer
@@ -161,19 +211,19 @@ class LLM:
         im_end = tok.convert_tokens_to_ids("<|im_end|>")
         eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
         
-        out = self.llm(prompt,
-                       max_new_tokens=160,
-                       do_sample=False,
-                       temperature=0.6,
-                       top_p=0.9,
-                       repetition_penalty=1.05,
-                       return_full_text=False,
-                       eos_token_id=eos_ids)
+        gen_cfg = GenerationConfig(
+            max_new_tokens=160,
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.9,
+            repetition_penalty=1.05,
+            eos_token_id=eos_ids
+        )
+        
+        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
         
         # Get only the generated response
-        bot = out[0]["generated_text"].strip()
-        
-        output = self.route_llm_output(bot)
+        output = out[0]["generated_text"].strip()
         
         self.conversation_history.append({"role":"assistant","content":output})
         

@@ -4,6 +4,7 @@ from typing import IO
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form
 import os
+import sys
 
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -15,7 +16,7 @@ from llm import LLM, LLMProFile
 #from tts_engine import TTSEngine
 
 
-is_local = True
+is_local = len(sys.argv) < 2 or sys.argv[1] != "server"
 
 
 @asynccontextmanager

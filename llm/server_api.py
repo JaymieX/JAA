@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from asr import Asr, ModelSize
+#from asr import Asr, ModelSize
 from llm import LLM, LLMProFile
 #from tts_engine import TTSEngine
 
@@ -26,11 +26,11 @@ async def lifespan(app: FastAPI):
     # --- Profiles ---
     if is_local:
         print("--- Using local setup... ---")
-        asr_size    : ModelSize  = ModelSize.SMALL
+        #asr_size    : ModelSize  = ModelSize.SMALL
         llm_profile : LLMProFile = LLMProFile.SMALL
     else:
         print("--- Using server setup... ---")
-        asr_size    : ModelSize  = ModelSize.LARGE_V3
+        #asr_size    : ModelSize  = ModelSize.LARGE_V3
         llm_profile : LLMProFile = LLMProFile.LARGE
     
     # -- Env --
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     print(f"Was .env file loaded? {was_loaded}")
     
     # --- Loading ASR ---
-    app.state.asr_model = Asr(asr_size)
+    #app.state.asr_model = Asr(asr_size)
     
     # --- Loading LLM ---
     app.state.llm = LLM(llm_profile, os.getenv('MY_NOTION_TOKEN'), os.getenv('MY_NOTION_PAGE_ID'))
@@ -169,5 +169,5 @@ if __name__ == "__main__":
     if is_local:
         uvicorn.run("server_api:app", host="127.0.0.1", port=8000, reload=True)
     else:
-        uvicorn.run("server_api:app", host="0.0.0.0", port=8000, reload=True)
+        uvicorn.run("server_api:app", host="0.0.0.0", port=8000, reload=False)
     

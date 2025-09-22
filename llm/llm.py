@@ -1,8 +1,8 @@
+from unsloth import FastLanguageModel
 import json
 from pathlib import Path
 import torch
 from transformers import BitsAndBytesConfig, pipeline, GenerationConfig
-from unsloth import FastLanguageModel
 from peft import PeftModel
 from enum import Enum
 
@@ -78,7 +78,7 @@ class LLM:
         elif profile == LLMProFile.LARGE:
             ft_base_model, ft_tokenizer = FastLanguageModel.from_pretrained(
                 "unsloth/Qwen2.5-7B-Instruct", #7B
-                dtype="auto",
+                dtype=None,
                 device_map="auto"
             )
             

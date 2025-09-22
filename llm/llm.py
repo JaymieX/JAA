@@ -79,14 +79,18 @@ class LLM:
             ft_base_model, ft_tokenizer = FastLanguageModel.from_pretrained(
                 "unsloth/Qwen2.5-7B-Instruct", #7B
                 dtype=None,
+                max_seq_length=2048,
                 device_map="auto"
             )
-            
-            # Load lora
+
+            # Load LoRA adapter
             ft_model = PeftModel.from_pretrained(ft_base_model, "Amie69/Qwen2.5-7B-cve-coder")
+
+            # Optimize for inference (2x speedup)
+            ft_model = FastLanguageModel.for_inference(ft_model)
             ft_model.eval() # Inference mode
 
-            self.llm = pipeline("text-generation", model=ft_model, tokenizer=ft_tokenizer, device_map="auto")
+            self.llm = pipeline("text-generation", model=ft_model, tokenizer=ft_tokenizer)
             
         else:
             print("LLM fail to load.")

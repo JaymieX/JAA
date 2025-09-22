@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import IO
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 import os
 
 from fastapi import FastAPI, UploadFile, File, Request
@@ -67,7 +67,7 @@ app.add_middleware(
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
     """Serves the main HTML page for the voice assistant UI."""
-    html_path = Path(__file__).resolve().parent / "index.html"
+    html_path = Path(__file__).resolve().parent / "front_end/index.html"
     
     if html_path.is_file():
         return html_path.read_text(encoding="utf-8-sig")
@@ -95,8 +95,35 @@ async def get_audio(filename: str):
     
     return {"error": "File not found"}, 404
 
+
 @app.post("/chat/")
-async def chat_endpoint(request: Request, file: UploadFile = File(...)):
+async def chat_endpoint(request: Request, user_text: str = Form(...)):
+    llm: LLM = request.app.state.llm
+
+    print(f"USER QUERY: {user_text}")
+
+    # If text is empty, don't bother with the LLM
+    if not user_text.strip():
+        print("No text recived.")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No text recived."}
+        )
+    
+    # Route the LLM output through function calling logic
+    final_response = llm.generate_response(user_text)
+    print(f"FINAL RESPONSE: {final_response}")
+    print("=" * 50)  # Separator between queries
+
+    
+    return JSONResponse(content={
+        "user_text": user_text,
+        "bot_text": final_response,  # Show the final response after function calling
+    })
+
+
+@app.post("/voice-chat/")
+async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
     audio_bytes = await file.read()
 
     asr_model : Asr       = request.app.state.asr_model

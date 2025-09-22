@@ -5,8 +5,8 @@ from transformers import BitsAndBytesConfig, pipeline
 from enum import Enum
 
 from summarize import Summarizer
-from search import Search
 from notion import Notion
+#from search import Search
 
 class LLMProFile(Enum):
     SMALL = 0,
@@ -76,7 +76,7 @@ class LLM:
         
         print("LLM loaded.")
         
-        self.rag_search = Search()
+        #self.rag_search = Search()
         self.summarizer = Summarizer()
         self.notion     = Notion(notion_token, notion_page_id)
         
@@ -101,6 +101,7 @@ class LLM:
             query = args.get("query", "")
             print(f"FUNCTION CALL: search_arxiv(query='{query}')")
             
+            """
             # Get top x rag paper and combine
             rag_results = self.rag_search.hybrid_search(query, 3)
             combined_text = ""
@@ -112,6 +113,9 @@ class LLM:
             
             # Sum
             result = self.summarizer.summarize(combined_text, 120, 100)[0]["summary_text"]
+            """
+            
+            result = "Function disabled until future"
 
             print(f"FUNCTION OUTPUT: {result}")
             print("Using tool: search_arxiv")

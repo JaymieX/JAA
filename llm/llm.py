@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import torch
 from transformers import BitsAndBytesConfig, pipeline, GenerationConfig
+from unsloth import FastLanguageModel
+from peft import PeftModel
 from enum import Enum
 
 from summarize import Summarizer
@@ -74,13 +76,17 @@ class LLM:
             )
             
         elif profile == LLMProFile.LARGE:
-            self.llm = pipeline(
-                "text-generation",
-                model="Qwen/Qwen2.5-7B-Instruct", #7B
-                model_kwargs={
-                    "device_map": "auto"
-                }
+            ft_base_model, ft_tokenizer = FastLanguageModel.from_pretrained(
+                "unsloth/Qwen2.5-7B-Instruct", #7B
+                dtype="auto",
+                device_map="auto"
             )
+            
+            # Load lora
+            ft_model = PeftModel.from_pretrained(ft_base_model, "Qwen2.5-7B-cve-coder-finetuned")
+            ft_model.eval() # Inference mode
+
+            self.llm = pipeline("text-generation", model=ft_model, tokenizer=ft_tokenizer, device_map="auto")
             
         else:
             print("LLM fail to load.")

@@ -83,7 +83,7 @@ class LLM:
             )
             
             # Load lora
-            ft_model = PeftModel.from_pretrained(ft_base_model, "Qwen2.5-7B-cve-coder-finetuned")
+            ft_model = PeftModel.from_pretrained(ft_base_model, "Amie69/Qwen2.5-7B-cve-coder")
             ft_model.eval() # Inference mode
 
             self.llm = pipeline("text-generation", model=ft_model, tokenizer=ft_tokenizer, device_map="auto")

@@ -86,6 +86,12 @@ class LLM:
             # Load LoRA adapter
             ft_model = PeftModel.from_pretrained(ft_base_model, "Amie69/Qwen2.5-7B-cve-coder")
 
+            # Verify LoRA adapter is loaded
+            if hasattr(ft_model, 'peft_config') and ft_model.peft_config:
+                print(f"✓ LoRA adapter loaded successfully: {list(ft_model.peft_config.keys())}")
+            else:
+                print("⚠️ Warning: LoRA adapter may not be loaded correctly")
+
             # Optimize for inference (2x speedup)
             ft_model = FastLanguageModel.for_inference(ft_model)
             ft_model.eval() # Inference mode

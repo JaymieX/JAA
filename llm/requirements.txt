@@ -1,0 +1,17 @@
+# Core ML and AI
+unsloth
+peft
+accelerate
+bitsandbytes
+
+# FastAPI server
+fastapi
+uvicorn
+python-multipart
+
+# Utilities
+dotenv
+notion-client
+
+# Optional: For better performance
+flash-attn

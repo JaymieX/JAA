@@ -325,9 +325,9 @@ class LLM:
         # Get the last 5 turns of the conversation.
         self.conversation_history.append({"role":"user","content":user_text})
         
-        # Frame the user's message to give context to the model.
+        # Construct prompt.
         prompt = self.llm.tokenizer.apply_chat_template(
-            [SECURITY_SYSTEM_PROMPT] + self.conversation_history[-10:], tokenize=False, add_generation_prompt=True
+            [SECURITY_SYSTEM_PROMPT, {"role":"user","content":user_text}], tokenize=False, add_generation_prompt=True
         )
         
         tok = self.llm.tokenizer

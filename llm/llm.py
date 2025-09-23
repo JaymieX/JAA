@@ -124,7 +124,7 @@ SECURITY_SYSTEM_PROMPT = {
     An attacker inputs more than 10 characters to overflow the stack buffer.
 
     4) Evidence in Code
-    - Line 2: strcpy(buf, input); → unbounded copy into fixed-size buffer
+    - Line 2: `strcpy(buf, input);` → unbounded copy into fixed-size buffer
 
     5) Fix
     Strategy: Use bounded copy with explicit size limit.

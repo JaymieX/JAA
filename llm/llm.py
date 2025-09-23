@@ -1,8 +1,7 @@
-from unsloth import FastLanguageModel
 import json
 from pathlib import Path
 import torch
-from transformers import BitsAndBytesConfig, pipeline, GenerationConfig
+from transformers import BitsAndBytesConfig, pipeline, GenerationConfig, AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 from enum import Enum
 from typing import TypedDict, Literal
@@ -45,11 +44,14 @@ class LLM:
                 }
             )
             
-        elif profile == LLMProFile.LARGE:
-            ft_base_model, ft_tokenizer = FastLanguageModel.from_pretrained(
-                "unsloth/Qwen2.5-7B-Instruct", #7B
-                dtype=None,
-                max_seq_length=2048,
+        elif profile == LLMProFile.LARGE:            
+            # Load tokenizer
+            ft_tokenizer = AutoTokenizer.from_pretrained("unsloth/Qwen2.5-7B-Instruct")
+            
+            # Base Model
+            ft_base_model = AutoModelForCausalLM.from_pretrained(
+                "unsloth/Qwen2.5-7B-Instruct",
+                torch_dtype="auto",
                 device_map="auto"
             )
 
@@ -62,8 +64,6 @@ class LLM:
             else:
                 print("⚠️ Warning: LoRA adapter may not be loaded correctly")
 
-            # Optimize for inference (2x speedup)
-            ft_model = FastLanguageModel.for_inference(ft_model)
             ft_model.eval() # Inference mode
 
             self.llm = pipeline("text-generation", model=ft_model, tokenizer=ft_tokenizer)

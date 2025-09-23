@@ -11,7 +11,7 @@ from langgraph.graph import StateGraph, END
 from summarize import Summarizer
 from notion import Notion
 #from search import Search
-import prompt
+import llm_prompts
 
 class LLMProFile(Enum):
     SMALL = 0,
@@ -123,7 +123,7 @@ class LLM:
     def _router_node(self, state: AgentState) -> AgentState:
         """Router node that decides which agent to use"""
         prompt = self.llm.tokenizer.apply_chat_template(
-            [prompt.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
+            [llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
             tokenize=False, add_generation_prompt=True
         )
 
@@ -188,7 +188,7 @@ class LLM:
 
         # Use existing generate_response logic
         prompt = self.llm.tokenizer.apply_chat_template(
-            [prompt.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:],
+            [llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:],
             tokenize=False, add_generation_prompt=True
         )
 
@@ -220,7 +220,7 @@ class LLM:
 
         # Construct prompt
         prompt = self.llm.tokenizer.apply_chat_template(
-            [prompt.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
+            [llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
             tokenize=False, add_generation_prompt=True
         )
 

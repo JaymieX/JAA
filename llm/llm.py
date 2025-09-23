@@ -235,7 +235,8 @@ class LLM:
             
         except (json.JSONDecodeError, TypeError):
             # Not a JSON function call; return the text directly
-            return llm_output
+            print(f"ROUTING ERROR OUTPUT: {llm_output}")
+            return "I am sorry, I could not help with this. Can you try something else?"
 
         if func_name == "search_arxiv":
             query = args.get("query", "")

@@ -112,7 +112,7 @@ async def chat_endpoint(request: Request, user_text: str = Form(...)):
         )
     
     # Route the LLM output through function calling logic
-    final_response = llm.router(user_text)
+    final_response = llm.generate_response(user_text)
     print(f"FINAL RESPONSE: {final_response}")
     print("=" * 50)  # Separator between queries
 

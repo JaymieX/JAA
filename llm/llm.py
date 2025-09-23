@@ -203,6 +203,7 @@ class LLM:
         # Initialize LangGraph workflow
         self._setup_langgraph_workflow()
 
+
     def _setup_langgraph_workflow(self):
         """Setup LangGraph workflow for agent routing"""
         workflow = StateGraph(AgentState)
@@ -212,6 +213,7 @@ class LLM:
         workflow.add_node("search_arxiv", self._search_arxiv_node)
         workflow.add_node("notion", self._notion_node)
         workflow.add_node("human_text", self._human_text_node)
+        workflow.add_node("vulnerability_check", self._check_vuln_node)
 
         # Set entry point
         workflow.set_entry_point("router")
@@ -223,7 +225,8 @@ class LLM:
             {
                 "search_arxiv": "search_arxiv",
                 "notion": "notion",
-                "human_text": "human_text"
+                "human_text": "human_text",
+                "vulnerability_check": "vulnerability_check"
             }
         )
 
@@ -231,8 +234,10 @@ class LLM:
         workflow.add_edge("search_arxiv", END)
         workflow.add_edge("notion", END)
         workflow.add_edge("human_text", END)
+        workflow.add_edge("vulnerability_check", END)
 
         self.workflow = workflow.compile()
+
 
     def _router_node(self, state: AgentState) -> AgentState:
         """Router node that decides which agent to use"""
@@ -258,17 +263,21 @@ class LLM:
         router_output = out[0]["generated_text"].strip()
 
         try:
+            # Attempt to extract function name if we failed default to human_text
             decision = json.loads(router_output)
             func_name = decision.get("function", "human_text")
         except (json.JSONDecodeError, TypeError):
             func_name = "human_text"
 
         state["router_decision"] = func_name
+        
         return state
 
-    def _route_decision(self, state: AgentState) -> Literal["search_arxiv", "notion", "human_text"]:
+
+    def _route_decision(self, state: AgentState) -> Literal["search_arxiv", "notion", "human_text", "vulnerability_check"]:
         """Routing function for conditional edges"""
         return state["router_decision"]
+
 
     def _search_arxiv_node(self, state: AgentState) -> AgentState:
         """Search ArXiv agent node"""
@@ -276,6 +285,7 @@ class LLM:
         result = "Function disabled until future"
         state["final_response"] = result
         return state
+
 
     def _notion_node(self, state: AgentState) -> AgentState:
         """Notion agent node"""
@@ -289,6 +299,7 @@ class LLM:
 
         state["final_response"] = result
         return state
+
 
     def _human_text_node(self, state: AgentState) -> AgentState:
         """Human text conversation agent node"""
@@ -321,83 +332,37 @@ class LLM:
         state["final_response"] = response
         return state
 
-    def router(self, user_text):
-        """Use LangGraph workflow for routing (deprecated - kept for compatibility)"""
-        return self.generate_response(user_text)
-        
-        
-    def route_llm_output(self, llm_output: str) -> str:
-        """
-        Route LLM response to the correct tool if it's a function call, else return the text.
-        Expects LLM output in JSON format like {'function': ..., 'arguments': {...}}.
-        """
-        try:
-            output = json.loads(llm_output)
-            func_name = output.get("function")
-            args = output.get("arguments", {})
-            
-        except (json.JSONDecodeError, TypeError):
-            # Not a JSON function call; return the text directly
-            print(f"ROUTING ERROR OUTPUT: {llm_output}")
-            return "I am sorry, I could not help with this. Can you try something else?"
 
-        if func_name == "search_arxiv":
-            query = args.get("query", "")
-            print(f"FUNCTION CALL: search_arxiv(query='{query}')")
-            
-            """
-            # Get top x rag paper and combine
-            rag_results = self.rag_search.hybrid_search(query, 3)
-            combined_text = ""
-            for search_hit in rag_results["hits"]:
-                print(f"HIT TEXT: {search_hit.text}")
-                combined_text += self.summarizer.summarize(search_hit.text, 100, 80)[0]["summary_text"] + "\n"
-                
-            print(f"COMBINED TEXT: {combined_text}")
-            
-            # Sum
-            result = self.summarizer.summarize(combined_text, 120, 100)[0]["summary_text"]
-            """
-            
-            result = "Function disabled until future"
+    def _check_vuln_node(self, state: AgentState) -> AgentState:
+        """Vulnerability check agent node"""
+        print(f"FUNCTION CALL: vulnerability_check()")
 
-            print(f"FUNCTION OUTPUT: {result}")
-            print("Using tool: search_arxiv")
-            return result
-        
-        elif func_name == "notion":
-            print(f"FUNCTION CALL: notion()")
-            
-            # Early out if not connected
-            if not self.is_notion_connected:
-                result = "You are not connected to notion. I cannot write to it."
-                print(f"FUNCTION OUTPUT: {result}")
-                print("Using tool: notion (failed - not connected)")
-                return result
-                
-            
-            self.notion.write_blocks(self.notion.conversation_to_notion_blocks(self.conversation_history[-10:]))
+        # Construct prompt
+        prompt = self.llm.tokenizer.apply_chat_template(
+            [SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
+            tokenize=False, add_generation_prompt=True
+        )
 
-            result = "I have written the conversation to notion."
-            print(f"FUNCTION OUTPUT: {result}")
-            print("Using tool: notion")
-            return result
-        
-        elif func_name == "vulnerability_check":
-            print(f"FUNCTION CALL: vulnerability_check()")
-            query = args.get("query", "")
-            
-            return self.generate_structured_response(query)
-        
-        elif func_name == "human_text":
-            print(f"FUNCTION CALL: human_text()")
-            query = args.get("query", "")
-            
-            return self.generate_response(query)
-        
-        else:
-            print(f"UNKNOWN FUNCTION: {func_name}")
-            return f"Error: Unknown function '{func_name}'"
+        tok = self.llm.tokenizer
+        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
+
+        im_end = tok.convert_tokens_to_ids("<|im_end|>")
+        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
+
+        gen_cfg = GenerationConfig(
+            max_new_tokens=400,
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.9,
+            repetition_penalty=1.05,
+            eos_token_id=eos_ids
+        )
+
+        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
+        response = out[0]["generated_text"].strip()
+
+        state["final_response"] = response
+        return state
         
         
     def generate_response(self, user_text):
@@ -427,41 +392,5 @@ class LLM:
             print(f"LangGraph workflow error: {e}")
             # Fallback to simple response
             fallback_response = "I'm sorry, I encountered an error processing your request."
-            self.conversation_history.append({"role":"assistant","content":fallback_response})
+            
             return fallback_response
-    
-    
-    def generate_structured_response(self, user_text):
-        # Get the last 5 turns of the conversation.
-        self.conversation_history.append({"role":"user","content":user_text})
-        
-        # Construct prompt.
-        prompt = self.llm.tokenizer.apply_chat_template(
-            [SECURITY_SYSTEM_PROMPT, {"role":"user","content":user_text}], tokenize=False, add_generation_prompt=True
-        )
-        
-        tok = self.llm.tokenizer
-        
-        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
-        
-        # End token
-        im_end = tok.convert_tokens_to_ids("<|im_end|>")
-        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
-        
-        gen_cfg = GenerationConfig(
-            max_new_tokens=400,
-            do_sample=True,
-            temperature=0.6,
-            top_p=0.9,
-            repetition_penalty=1.05,
-            eos_token_id=eos_ids
-        )
-        
-        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
-        
-        # Get only the generated response
-        output = out[0]["generated_text"].strip()
-        
-        self.conversation_history.append({"role":"assistant","content":output})
-        
-        return output

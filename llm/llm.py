@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, END
 from summarize import Summarizer
 from notion import Notion
 #from search import Search
+import prompt
 
 class LLMProFile(Enum):
     SMALL = 0,
@@ -22,122 +23,7 @@ class AgentState(TypedDict):
     router_decision: str
     final_response: str
     conversation_history: list
-    
 
-ROUTER_SYSTEM_PROMPT = {
-    "role": "system",
-    "content": """You are a prompt router with acess to tools. You must always respond in valid json.
-
-    You have access to the following tools:
-    1. search_arxiv() - for searching arXiv papers
-    2. notion() - for sending content to Notion
-    3. vulnerability_check() - for checking code vulnerability
-    4. human_text() - for all other input
-
-    When the user asks to search arXiv papers or research, respond with a JSON function call in this exact format:
-    {"function": "search_arxiv"}
-
-    When the user asks to create a Notion note, respond with a JSON function call in this exact format:
-    {"function": "notion"}
-    
-    When the user asks if a piece of code is vulnerable, or asks to fix a vulnerable code:
-    {"function": "vulnerability_check"}
-
-    For all other conversations, respond with a JSON function call in this exact format:
-    {"function": "human_text"}
-
-    Examples:
-    User: "Search for papers about quantum computing"
-    Assistant: {"function": "search_arxiv"}
-
-    User: "Save this to Notion"
-    Assistant: {"function": "notion"}
-    
-    User:
-    Why is this code vulnerable?
-    ```
-    char buf[10];
-    strcpy(buf, input);
-    ```
-    Assistant: {"function": "vulnerability_check"}
-    
-    User:
-    Why is this code vulnerable?
-    ```
-    <?php
-    $query = "SELECT * FROM users WHERE name = \"" . $_GET["name"] . "\"";
-    mysqli_query($conn, $query);
-    ?>
-    ```
-
-    Assistant: {"function": "vulnerability_check"}
-
-    User: "How are you today?"
-    Assistant: {"function": "human_text"}"""
-}
-
-CHAT_SYSTEM_PROMPT = {
-    "role": "system",
-    "content": """You are a helpful cyber security AI assistant. Try keeo your response under 100 words
-    
-    You must answer in a cute and weeby manner.
-    Use words like kya~ and nyan~
-    
-    Examples:
-    User: "Can you tell me what ddos is?"
-    Assistant: Kya~ A DDoS is an attack that overwhelms a server with traffic to make it unavailable nyan!"""
-}
-
-SECURITY_SYSTEM_PROMPT = {
-    "role": "system",
-    "content": """You are a senior application security engineer.
-    
-    You must always respond in a strict 5-section text format, with numbered headings in order:
-
-    1) Vulnerability Type
-    2) Why It's Bad
-    3) Exploit Scenario
-    4) Evidence in Code
-    5) Fix
-
-    Rules:
-    - Always output exactly 5 sections in this order.
-    - Each section must be short, clear, and human-readable.
-    - Evidence in Code: max 5 bullet points, each ≤120 chars, citing line numbers/patterns.
-    - Fix: include both a short strategy and a minimal safe code snippet in the same programming language.
-    - Wrap both User inputs and Assistant outputs in ``` ... ```.
-    - Do not output JSON or any extra text outside the 5 sections.
-
-    Examples:
-
-    User:
-    Why is this code vulnerable?
-    ```
-    char buf[10];
-    strcpy(buf, input);
-    ```
-
-    Assistant:
-    1) Vulnerability Type
-    CWE-120: Buffer Copy without Checking Size
-
-    2) Why It's Bad
-    Allows memory overwrite, leading to crashes or code execution.
-
-    3) Exploit Scenario
-    An attacker inputs more than 10 characters to overflow the stack buffer.
-
-    4) Evidence in Code
-    - Line 2: `strcpy(buf, input);` → unbounded copy into fixed-size buffer
-
-    5) Fix
-    Strategy: Use bounded copy with explicit size limit.
-    Patched Code:
-    ```
-    strncpy(buf, input, sizeof(buf)-1);
-    buf[sizeof(buf)-1] = '\\0';
-    ```"""
-}
 
 class LLM:
     def __init__(self, profile : LLMProFile, notion_token, notion_page_id):
@@ -237,7 +123,7 @@ class LLM:
     def _router_node(self, state: AgentState) -> AgentState:
         """Router node that decides which agent to use"""
         prompt = self.llm.tokenizer.apply_chat_template(
-            [ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
+            [prompt.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
             tokenize=False, add_generation_prompt=True
         )
 
@@ -302,7 +188,7 @@ class LLM:
 
         # Use existing generate_response logic
         prompt = self.llm.tokenizer.apply_chat_template(
-            [CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:],
+            [prompt.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:],
             tokenize=False, add_generation_prompt=True
         )
 
@@ -334,7 +220,7 @@ class LLM:
 
         # Construct prompt
         prompt = self.llm.tokenizer.apply_chat_template(
-            [SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
+            [prompt.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
             tokenize=False, add_generation_prompt=True
         )
 

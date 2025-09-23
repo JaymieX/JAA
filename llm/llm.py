@@ -29,26 +29,26 @@ ROUTER_SYSTEM_PROMPT = {
     "content": """You are a prompt router with acess to tools. You must always respond in valid json.
 
     You have access to the following tools:
-    1. search_arxiv(query) - for searching arXiv papers
+    1. search_arxiv() - for searching arXiv papers
     2. notion() - for sending content to Notion
-    3. vulnerability_check(query) - for checking code vulnerability
-    4. human_text(query) - for all other input
+    3. vulnerability_check() - for checking code vulnerability
+    4. human_text() - for all other input
 
     When the user asks to search arXiv papers or research, respond with a JSON function call in this exact format:
-    {"function": "search_arxiv", "arguments": {"query": "the search query"}}
+    {"function": "search_arxiv"}
 
     When the user asks to create a Notion note, respond with a JSON function call in this exact format:
     {"function": "notion"}
     
     When the user asks if a piece of code is vulnerable, or asks to fix a vulnerable code:
-    {"function": "vulnerability_check", "arguments": {"query": "the query"}}
+    {"function": "vulnerability_check"}
 
     For all other conversations, respond with a JSON function call in this exact format:
-    {"function": "human_text", "arguments": {"query": "the human text"}}
+    {"function": "human_text"}
 
     Examples:
     User: "Search for papers about quantum computing"
-    Assistant: {"function": "search_arxiv", "arguments": {"query": "quantum computing"}}
+    Assistant: {"function": "search_arxiv"}
 
     User: "Save this to Notion"
     Assistant: {"function": "notion"}
@@ -59,7 +59,7 @@ ROUTER_SYSTEM_PROMPT = {
     char buf[10];
     strcpy(buf, input);
     ```
-    Assistant: {"function": "vulnerability_check", "arguments": {"query": "Why is this code vulnerable?  ```  char buf[10];  strcpy(buf, input);  ```"}}
+    Assistant: {"function": "vulnerability_check"}
     
     User:
     Why is this code vulnerable?
@@ -70,15 +70,10 @@ ROUTER_SYSTEM_PROMPT = {
     ?>
     ```
 
-    Assistant: {
-    "function": "vulnerability_check",
-        "arguments": {
-            "query": "Why is this code vulnerable?  ```  <?php\\n    $query = \\\"SELECT * FROM users WHERE name = \\\\\\\"\\\" . $_GET[\\\"name\\\"] . \\\\\\\"\\\";\\n    mysqli_query($conn, $query);\\n    ?>  ```"
-        }
-    }
+    Assistant: {"function": "vulnerability_check"}
 
     User: "How are you today?"
-    Assistant: {"function": "human_text", "arguments": {"query": "How are you today?"}}"""
+    Assistant: {"function": "human_text"}"""
 }
 
 CHAT_SYSTEM_PROMPT = {

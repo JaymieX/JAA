@@ -253,26 +253,27 @@
     /* conversation area */
     .conversation {
       margin-top: 14px;
-      height: min(42vh, 460px);
+      height: min(60vh, 600px);
       overflow-y: auto;
       background: linear-gradient(180deg, rgba(255,255,255,.01), rgba(255,255,255,0));
       border: 1px solid rgba(255,255,255,.06);
       border-radius: var(--radius);
-      padding: 14px;
+      padding: 20px;
       scroll-behavior: smooth;
     }
 
     .message {
       position: relative;
-      margin: 0 0 12px;
-      padding: 12px 14px;
+      margin: 0 0 20px;
+      padding: 18px 20px;
       border-radius: 14px;
-      max-width: 85%;
+      max-width: 95%;
       overflow-wrap: break-word;
       word-wrap: break-word;
-      line-height: 1.4;
-      font-size: 0.98rem;
+      line-height: 1.6;
+      font-size: 1.05rem;
       border: 1px solid rgba(255,255,255,.06);
+      white-space: pre-wrap; /* Preserve line breaks and whitespace */
     }
 
     .message::after{
@@ -302,6 +303,39 @@
       border-bottom-left-radius: 6px;
       box-shadow: 0 8px 20px rgba(255,123,211,.18);
       border: 1px solid rgba(255,123,211,.35);
+    }
+
+    /* Code block styling */
+    .message pre,
+    .message code {
+      background: rgba(0,0,0,.4);
+      border: none;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 1rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      color: #e8e8e8;
+    }
+
+    .message code {
+      padding: 4px 8px;
+      margin: 0 3px;
+      display: inline;
+      background: rgba(0,0,0,.3);
+      font-size: 0.95rem;
+    }
+
+    /* Numbered section headers */
+    .message strong {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+      display: block;
+      margin: 18px 0 10px 0;
+      line-height: 1.4;
     }
 
     /* tiny kawaii label chips */
@@ -618,9 +652,29 @@
     function addMessage(text, sender) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender);
-        messageDiv.textContent = text;
+
+        // Format the text for better display
+        let formattedText = formatMessage(text);
+        messageDiv.innerHTML = formattedText;
+
         conversationDiv.appendChild(messageDiv);
         conversationDiv.scrollTop = conversationDiv.scrollHeight;
+    }
+
+    function formatMessage(text) {
+        // Handle code blocks (```...```)
+        text = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+        // Handle inline code (`...`)
+        text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Handle numbered sections (1), 2), 3), etc.) - make them bold and bigger
+        text = text.replace(/^(\d+\)\s+[^\n]+)/gm, '<strong>$1</strong>');
+
+        // Convert line breaks to HTML
+        text = text.replace(/\n/g, '<br>');
+
+        return text;
     }
 
     // Event Listeners

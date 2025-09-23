@@ -80,7 +80,7 @@
       background:
         radial-gradient(circle at 30% 30%, rgba(255,255,255,.16), transparent 55%),
         linear-gradient(135deg, rgba(145,92,255,.35), rgba(255,123,211,.30));
-      border: 1px solid rgba(255,255,255,.08);
+      border: 1px solid rgba(255, 255, 255, 0.058);
       box-shadow: var(--glow);
       font-size: 28px;
     }
@@ -324,8 +324,19 @@
       padding: 4px 8px;
       margin: 0 3px;
       display: inline;
-      background: rgba(0,0,0,.3);
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 4px;
       font-size: 0.95rem;
+    }
+
+    /* Remove background/border for code inside pre blocks */
+    .message pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      border-radius: 0;
     }
 
     /* Numbered section headers */

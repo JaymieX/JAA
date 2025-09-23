@@ -50,12 +50,23 @@ ROUTER_SYSTEM_PROMPT = {
     char buf[10];
     strcpy(buf, input);
     ```
-    Assistant: {"function": "vulnerability_check", "arguments": {"query": "Why is this code vulnerable?
+    Assistant: {"function": "vulnerability_check", "arguments": {"query": "Why is this code vulnerable?  ```  char buf[10];  strcpy(buf, input);  ```"}}
+    
+    User:
+    Why is this code vulnerable?
     ```
-    char buf[10];
-    strcpy(buf, input);
+    <?php
+    $query = "SELECT * FROM users WHERE name = \"" . $_GET["name"] . "\"";
+    mysqli_query($conn, $query);
+    ?>
     ```
-    "}}
+
+    Assistant: {
+    "function": "vulnerability_check",
+        "arguments": {
+            "query": "Why is this code vulnerable?  ```  <?php\\n    $query = \\\"SELECT * FROM users WHERE name = \\\\\\\"\\\" . $_GET[\\\"name\\\"] . \\\\\\\"\\\";\\n    mysqli_query($conn, $query);\\n    ?>  ```"
+        }
+    }
 
     User: "How are you today?"
     Assistant: {"function": "human_text", "arguments": {"query": "How are you today?"}}"""

@@ -1,19 +1,23 @@
 import json
+import random
 import sys
 from pathlib import Path
 
 # Add parent directory to path to import settings
 sys.path.append(str(Path(__file__).parent.parent))
 from settings import config
+from sft_sys_prompts import SYSTEM_PROMPTS
 
-def convert_juliet_to_sft():
-    """Convert Juliet raw data to SFT format"""
+RNG_SEED = 1337
 
-    print("Converting Juliet Test Suite data to SFT format...")
+def convert_code_vlun_dpo_to_sft():
+    """Convert code_vlun_dpo raw data to SFT format"""
+
+    print("Converting code_vlun_dpo Test Suite data to SFT format...")
 
     # Input and output files
-    input_file = config.get_raw_file_path("juliet_raw.jsonl")
-    output_file = config.get_raw_file_path("juliet_sft.jsonl")
+    input_file = config.get_raw_file_path("code_vlun_dpo_raw.jsonl")
+    output_file = config.get_raw_file_path("code_vlun_dpo_sft.jsonl")
 
     if not input_file.exists():
         print(f"Input file not found: {input_file}")
@@ -21,13 +25,6 @@ def convert_juliet_to_sft():
 
     print(f"Input: {input_file}")
     print(f"Output: {output_file}")
-
-    system_content = (
-        "You are a helpful cyber security programming assistant. "
-        "Given a vulnerable code snippet, "
-        "output only the corrected code. "
-        "Do not include explanations, markdown, or extra text."
-    )
 
     processed_count = 0
 
@@ -39,21 +36,26 @@ def convert_juliet_to_sft():
                 data = json.loads(line.strip())
 
                 # Extract data
-                user_content = data.get("bad", "")  # vulnerable code
-                assistant_content = data.get("good", "")  # fixed code
+                user_content = data.get("rejected", "")    # vulnerable code
+                assistant_content = data.get("chosen", "") # fixed code
 
                 # Skip if missing essential data
                 if not user_content or not assistant_content:
-                    print(f"Skipping entry {i+1} - missing bad or good")
+                    print(f"Skipping entry {i+1} - missing rejected or chosen")
                     continue
+                
+                system_content = random.Random(RNG_SEED).choice(SYSTEM_PROMPTS)["content"]
 
-                # Create SFT conversation format
-                conversation_text = f"<|system|>{system_content}<|user|>{user_content}<|assistant|>{assistant_content}<|endoftext|>"
-
+                # --- Write Unsloth SFT "conversations" format ---
                 sft_entry = {
-                    "text": conversation_text,
-                    "name": f"juliet_{i+1}"
+                    "name": f"code_vlun_dpo_{i+1}",
+                    "conversations": [
+                        {"role": "system", "content": system_content},
+                        {"role": "user", "content": user_content},
+                        {"role": "assistant", "content": assistant_content},
+                    ]
                 }
+                # ----------------------------------------------------------------
 
                 # Write to output file
                 outfile.write(json.dumps(sft_entry, ensure_ascii=False) + '\n')
@@ -77,16 +79,16 @@ def convert_juliet_to_sft():
     return processed_count
 
 def main():
-    """Main function to convert Juliet data to SFT format"""
+    """Main function to convert code_vlun_dpo data to SFT format"""
 
-    print("=== Juliet to SFT Conversion ===")
-    print("Input: juliet_raw.jsonl")
-    print("Output: juliet_sft.jsonl")
-    print("Format: bad -> user, good -> assistant")
+    print("=== code_vlun_dpo to SFT Conversion ===")
+    print("Input: code_vlun_dpo_raw.jsonl")
+    print("Output: code_vlun_dpo_sft.jsonl")
+    print("Format: rejected -> user, chosen -> assistant")
     print()
 
     # Convert the data
-    count = convert_juliet_to_sft()
+    count = convert_code_vlun_dpo_to_sft()
 
     print(f"\n=== Conversion Complete ===")
     print(f"Successfully converted {count} entries")

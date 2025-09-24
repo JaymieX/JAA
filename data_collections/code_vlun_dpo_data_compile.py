@@ -26,6 +26,7 @@ def convert_code_vlun_dpo_to_sft():
     print(f"Input: {input_file}")
     print(f"Output: {output_file}")
 
+    rng = random.Random(RNG_SEED)
     processed_count = 0
 
     with open(input_file, 'r', encoding='utf-8') as infile, \
@@ -44,7 +45,7 @@ def convert_code_vlun_dpo_to_sft():
                     print(f"Skipping entry {i+1} - missing rejected or chosen")
                     continue
                 
-                system_content = random.Random(RNG_SEED).choice(SYSTEM_PROMPTS)["content"]
+                system_content = rng.choice(SYSTEM_PROMPTS)["content"]
 
                 # --- Write Unsloth SFT "conversations" format ---
                 sft_entry = {

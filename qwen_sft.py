@@ -1,18 +1,21 @@
 from unsloth import FastLanguageModel
 from transformers import AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import sys
 from pathlib import Path
+
+# NEW: import chat template helper
+from unsloth.chat_templates import get_chat_template
 
 # Add current directory to path to import settings
 sys.path.append(str(Path(__file__).parent))
 from settings import config
 
 def fine_tune_qwen_model(
-    model_name: str = "unsloth/Qwen2.5-7B-Instruct",
+    model_name: str = "unsloth/Qwen2.5-14B-Instruct",
     dataset_file: str = None,
-    output_dir: str = "Qwen2.5-7B-qlora-finetuned",
+    output_dir: str = "Qwen2.5-14B-qlora-finetuned",
     batch_size: int = 4,
     gradient_steps: int = 4,
     epochs: int = 2,
@@ -20,11 +23,11 @@ def fine_tune_qwen_model(
     max_seq_length: int = 2048
 ):
     """
-    Fine-tune Qwen2.5-7B-Instruct model using QLoRA with Unsloth
+    Fine-tune Qwen2.5-14B-Instruct model using QLoRA with Unsloth
 
     Args:
         model_name: Hugging Face model name or path
-        dataset_file: Path to JSONL dataset file (defaults to sft_all.jsonl)
+        dataset_file: Path to JSONL dataset file (defaults to sft_cve.jsonl)
         output_dir: Directory to save fine-tuned model
         batch_size: Per-device training batch size
         gradient_steps: Gradient accumulation steps
@@ -60,7 +63,7 @@ def fine_tune_qwen_model(
 
     # Set default dataset file if not provided
     if dataset_file is None:
-        dataset_file = config.get_raw_file_path("sft_all.jsonl")
+        dataset_file = config.get_raw_file_path("sft_cve.jsonl")
 
     print(f"Loading dataset: {dataset_file}")
     # Load our SFT dataset with shuffling
@@ -71,12 +74,64 @@ def fine_tune_qwen_model(
 
     print(f"Dataset size: {len(dataset)} samples (shuffled)")
 
-    # Initialize the trainer for Supervised Fine-Tuning (SFT)
+    # --- NEW: turn conversations -> text via Qwen-2.5 chat template ---
+    chat_tmpl = get_chat_template(tokenizer, chat_template="qwen-2.5")
+
+    def to_text(example):
+        conv = example.get("conversations")
+        if not conv:
+            # Fallback if a row is in old {text: ...} format
+            return {"text": example.get("text", "")}
+        
+        # Produce the fully formatted prompt+answer text
+        txt = chat_tmpl.apply_chat_template(
+            conv,
+            tokenize=False,
+            add_generation_prompt=False,  # we already include assistant messages
+        )
+        return {"text": txt}
+
+    dataset = dataset.map(to_text)
+    
+    # --- DEBUG: peek at assistant header in flattened text ---
+    sample = dataset[0]["text"]
+    print("\n=== SAMPLE PREVIEW (first 600 chars) ===")
+    print(sample[:600].replace("\n", "\\n"))
+
+    candidates = ["<|assistant|>", "<|im_start|>assistant", "<|assistant>", "assistant"]
+    found_any = False
+    for tag in candidates:
+        idx = sample.find(tag)
+        if idx != -1:
+            found_any = True
+            s = max(0, idx - 120)
+            e = min(len(sample), idx + 120)
+            print(f"\nFound candidate tag {tag!r} at index {idx}. Context:")
+            print(sample[s:e].replace("\n", "\\n"))
+            print(f"Use this for response_template: {tag!r}")
+
+    if not found_any:
+        print("\nNo known assistant tag found in first sample. "
+            "Print more or increase preview window to inspect formatting.")
+    # ----------------------------------------------------------
+    
+    # ---------------------------------------------------------------
+    
+    # Anti overfit
+    response_template = "<|assistant|>"
+
+    collator = DataCollatorForCompletionOnlyLM(
+        tokenizer=tokenizer,
+        response_template=response_template,
+        mlm=False,
+    )
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
         dataset_text_field="text",
+        data_collator=collator,
         max_seq_length=max_seq_length,
         args=TrainingArguments(
             output_dir=output_dir,
@@ -84,8 +139,8 @@ def fine_tune_qwen_model(
             gradient_accumulation_steps=gradient_steps,
             num_train_epochs=epochs,
             learning_rate=learning_rate,
-            fp16=False,
-            bf16=True,
+            fp16=True,
+            bf16=False,
             logging_steps=25,  # More frequent logging for large dataset
             save_strategy="steps",  # Save by steps instead of epochs
             save_steps=500,  # Save every 500 steps
@@ -112,24 +167,25 @@ def fine_tune_qwen_model(
 def main():
     """Main function to start SFT training"""
 
-    print("=== Qwen2.5-7B-Instruct SFT Training ===")
+    print("=== Qwen2.5-14B-Instruct SFT Training ===")
     print(f"Dataset: {config.get_raw_file_path('sft_cve.jsonl')}")
-    print(f"Model: unsloth/Qwen2.5-7B-Instruct")
+    print(f"Model: unsloth/Qwen2.5-14B-Instruct")
     print()
 
     # Start fine-tuning optimized for V100 48GB
     model, tokenizer = fine_tune_qwen_model(
-        model_name="unsloth/Qwen2.5-7B-Instruct",
-        output_dir="Qwen2.5-7B-cs-coder-finetuned",
-        batch_size=8,  # Larger batch size for V100 48GB
-        gradient_steps=4,  # Effective batch size = 8 * 4 = 32
+        model_name="unsloth/Qwen2.5-14B-Instruct",
+        dataset_file=str(config.get_raw_file_path("sft_cve.jsonl")),
+        output_dir="Qwen2.5-14B-cs-coder-finetuned",
+        batch_size=1,  # Larger batch size for V100 48GB
+        gradient_steps=32,  # Effective batch size 32
         epochs=2,  # Fewer epochs for large dataset
         learning_rate=5e-5,  # Lower LR for large dataset stability
         max_seq_length=8192  # Longer sequences for complex code problems
     )
 
     print("\n=== Training Complete ===")
-    print("Model saved to: Qwen2.5-7B-cs-coder-finetuned")
+    print("Model saved to: Qwen2.5-14B-cs-coder-finetuned")
 
 if __name__ == "__main__":
     main()

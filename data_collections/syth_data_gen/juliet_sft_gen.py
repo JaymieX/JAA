@@ -8,6 +8,7 @@ back to the raw data directory as `juliet_sft.jsonl`.
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
@@ -96,7 +97,7 @@ def generate_sft(
     include_seed: bool,
     size: str,
 ) -> None:
-    """Run the full Juliet synthetic data generation pipeline."""
+    """Run the full Juliet synthetic data generation pipeline using batch processing."""
     raw_path    = config.get_raw_file_path("juliet_raw.jsonl")
     output_path = config.get_raw_file_path("juliet_sft.jsonl")
     output_path.unlink(missing_ok=True)  # Always overwrite the file
@@ -105,52 +106,74 @@ def generate_sft(
         print(f"[error] Juliet raw file not found: {raw_path}")
         return
 
-    generator = SythDataGen(size=size)
-    generator.set_system_prompts(SYSTEM_PROMPTS)
-
-    seeds_processed = 0
-    conversations_written = 0
+    # First, collect ALL seeds into memory
+    print("Loading seeds from dataset...")
+    all_seeds = []
+    line_numbers = []
 
     for line_number, bad_text, good_text in iter_juliet_raw(raw_path):
-        if limit is not None and seeds_processed >= limit:
+        if limit is not None and len(all_seeds) >= limit:
             break
 
         seed_messages = build_seed_messages(bad_text, good_text)
-        seed_rng = rng_seed + seeds_processed if rng_seed is not None else None
-        
-        synthetic_conversations = generator.generate(
-            seed_messages,
-            variations=variations,
-            rng_seed=seed_rng,
-        )
+        all_seeds.append(seed_messages)
+        line_numbers.append(line_number)
+
+    print(f"Loaded {len(all_seeds)} seeds. Starting batch generation with {variations} variations per seed...")
+
+    generator = SythDataGen(size=size)
+    generator.set_system_prompts(SYSTEM_PROMPTS)
+
+    start_time = time.time()
+
+    # Process ALL seeds in one batch call
+    batch_results = generator.generate_batch(
+        all_seeds,
+        variations=variations,
+        rng_seed=rng_seed,
+    )
+
+    # Write results
+    conversations_written = 0
+    for seed_idx, seed_conversations in enumerate(batch_results):
+        line_number = line_numbers[seed_idx]
+        seed_messages = all_seeds[seed_idx]
 
         packaged: List[Dict[str, object]] = []
-        for idx, convo in enumerate(synthetic_conversations, start=1):
+        for idx, convo in enumerate(seed_conversations, start=1):
             record: Dict[str, object] = {
                 "seed_line": line_number,
                 "variation": idx,
                 "messages": convo,
             }
-            
+
             if include_seed:
                 record["seed"] = seed_messages
-                
+
             packaged.append(record)
 
         if packaged:
             write_conversations(output_path, packaged)
             conversations_written += len(packaged)
 
-        seeds_processed += 1
+        # Progress reporting
+        seeds_processed = seed_idx + 1
         if seeds_processed % log_every == 0:
+            elapsed = time.time() - start_time
+            seeds_per_sec = seeds_processed / elapsed if elapsed > 0 else 0
             print(
-                f"Processed {seeds_processed} seeds -> {conversations_written} synthetic conversations"
+                f"[{seeds_processed:>6d}] Processed {seeds_processed} seeds -> {conversations_written} conversations | "
+                f"{seeds_per_sec:.2f} seeds/s"
             )
 
+    elapsed_total = time.time() - start_time
+    seeds_processed = len(all_seeds)
+    avg_seeds_per_sec = seeds_processed / elapsed_total if elapsed_total > 0 else 0
+
     print(
-        f"Done. Seeds processed: {seeds_processed}, synthetic conversations written: {conversations_written}"
+        f"\nDone! Seeds processed: {seeds_processed}, synthetic conversations written: {conversations_written}"
     )
-    
+    print(f"Total time: {elapsed_total:.2f}s | Avg: {avg_seeds_per_sec:.2f} seeds/s")
     print(f"Output saved to: {output_path}")
 
 

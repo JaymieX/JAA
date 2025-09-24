@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Sequence, Union
 
 import torch
 from transformers import BitsAndBytesConfig, GenerationConfig, pipeline
+from transformers.pipelines.pt_utils import KeyDataset
+from datasets import Dataset
 import syth_gen_prompt as gen_prompts
 
 SMALL_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
@@ -31,6 +33,9 @@ class SythDataGen:
 
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        # Set left padding for decoder-only models (required for batch generation)
+        self.tokenizer.padding_side = 'left'
 
         self.gen_cfg = self._build_generation_config(self.tokenizer)
         self._system_prompts: List[Dict[str, str]] = [DEFAULT_SYSTEM_MESSAGE]
@@ -67,35 +72,59 @@ class SythDataGen:
         
         self._system_prompts = cleaned
 
+    def generate_batch(
+        self,
+        seed_conversations: List[List[Dict[str, str]]],
+        variations: int = 3,
+        rng_seed: Optional[int] = None,
+    ) -> List[List[List[Dict[str, str]]]]:
+        """Process multiple seed conversations at once using Dataset API for maximum efficiency."""
+        if variations <= 0 or not seed_conversations:
+            return []
+
+        # Extract all user and assistant seeds
+        all_user_seeds = []
+        all_assistant_seeds = []
+
+        for seed_conversation in seed_conversations:
+            user_seed = self._get_latest_content(seed_conversation, "user")
+            assistant_seed = self._get_latest_content(seed_conversation, "assistant")
+
+            # Repeat each seed for the number of variations
+            all_user_seeds.extend([user_seed] * variations)
+            all_assistant_seeds.extend([assistant_seed] * variations)
+
+        # Generate ALL variations at once using Dataset
+        user_variants = self._generate_all_variants_with_dataset(all_user_seeds, "user")
+        assistant_variants = self._generate_all_variants_with_dataset(all_assistant_seeds, "assistant")
+
+        # Group results back by seed
+        rng = random.Random(rng_seed) if rng_seed is not None else random
+        results = []
+
+        for seed_idx in range(len(seed_conversations)):
+            seed_results = []
+            for var_idx in range(variations):
+                global_idx = seed_idx * variations + var_idx
+                system_message = self._choose_system_prompt(rng)
+                seed_results.append([
+                    system_message,
+                    {"role": "user", "content": user_variants[global_idx]},
+                    {"role": "assistant", "content": assistant_variants[global_idx]},
+                ])
+            results.append(seed_results)
+
+        return results
+
     def generate(
         self,
         seed_conversation: List[Dict[str, str]],
         variations: int = 3,
         rng_seed: Optional[int] = None,
     ) -> List[List[Dict[str, str]]]:
-        """Return synthetic conversations built from independently generated user/assistant turns."""
-        if variations <= 0:
-            return []
-
-        user_seed = self._get_latest_content(seed_conversation, "user")
-        assistant_seed = self._get_latest_content(seed_conversation, "assistant")
-
-        rng = random.Random(rng_seed) if rng_seed is not None else random
-        results: List[List[Dict[str, str]]] = []
-
-        for _ in range(variations):
-            user_variant = self._generate_user_variant(user_seed)
-            assistant_variant = self._generate_assistant_variant(assistant_seed)
-            system_message = self._choose_system_prompt(rng)
-            results.append(
-                [
-                    system_message,
-                    {"role": "user", "content": user_variant},
-                    {"role": "assistant", "content": assistant_variant},
-                ]
-            )
-
-        return results
+        """Legacy single-seed method - calls batch method for consistency."""
+        batch_results = self.generate_batch([seed_conversation], variations, rng_seed)
+        return batch_results[0] if batch_results else []
 
     def _choose_system_prompt(self, rng) -> Dict[str, str]:
         selected = rng.choice(self._system_prompts)
@@ -138,8 +167,8 @@ class SythDataGen:
         return GenerationConfig(
             max_new_tokens=400,
             do_sample=True,
-            temperature=0.3,
-            top_p=0.8,
+            temperature=0.1,
+            top_p=0.9,
             repetition_penalty=1.05,
             eos_token_id=eos_ids,
         )
@@ -150,6 +179,59 @@ class SythDataGen:
                 return message["content"]
             
         raise ValueError(f"Seed conversation missing a '{role}' message.")
+
+    def _generate_all_variants_with_dataset(self, source_texts: List[str], variant_type: str) -> List[str]:
+        """Generate ALL variations at once using Dataset API to avoid sequential pipeline warning."""
+        if not source_texts:
+            return []
+
+        # Choose appropriate system prompt based on variant type
+        if variant_type == "user":
+            system_prompt = gen_prompts.USER_VARIATION_SYSTEM_PROMPT
+        else:
+            system_prompt = gen_prompts.ASSISTANT_VARIATION_SYSTEM_PROMPT
+
+        # Create prompts for ALL source texts
+        prompts = []
+        for i, source_text in enumerate(source_texts):
+            prompt = self.tokenizer.apply_chat_template(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": source_text},
+                ],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            prompts.append(prompt)
+
+            # Debug: Print first prompt to verify system prompt is applied correctly
+            if i == 0:
+                print(f"FULL PROMPT SENT TO MODEL ({variant_type}):\n{prompt}\n{'='*50}")
+
+        # Convert to Dataset
+        dataset = Dataset.from_dict({"text": prompts})
+
+        # Use pipeline with KeyDataset for efficient batching
+        results = []
+        batch_size = min(len(prompts), 8)  # Reasonable batch size
+
+        print(f"Processing {len(prompts)} {variant_type} variations in batches of {batch_size}")
+
+        for output in self.llm(KeyDataset(dataset, "text"),
+                              generation_config=self.gen_cfg,
+                              return_full_text=False,
+                              batch_size=batch_size):
+            # KeyDataset always returns list format: [{"generated_text": "..."}]
+            if isinstance(output, list) and len(output) > 0 and isinstance(output[0], dict):
+                cleaned_text = self._clean_generated_text(output[0]["generated_text"].strip())
+            else:
+                # Fallback for unexpected formats
+                print(f"WARNING: Unexpected output format: {type(output)}")
+                cleaned_text = str(output).strip()
+
+            results.append(cleaned_text)
+
+        return results
 
     def _generate_user_variant(self, source_text: str) -> str:
         prompt_messages = [

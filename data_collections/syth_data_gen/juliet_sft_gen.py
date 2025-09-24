@@ -8,6 +8,7 @@ back to the raw data directory as `juliet_sft.jsonl`.
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
@@ -110,47 +111,114 @@ def generate_sft(
 
     seeds_processed = 0
     conversations_written = 0
+    start_time = time.time()
+
+    print(f"Starting generation with {variations} variations per seed...")
+    if limit:
+        print(f"Processing max {limit} seeds from {raw_path}")
+    else:
+        print(f"Processing all seeds from {raw_path}")
+
+    # Process seeds in larger batches to minimize pipeline calls
+    SEED_BATCH_SIZE = 4  # Process multiple seeds at once
+    seed_batch = []
 
     for line_number, bad_text, good_text in iter_juliet_raw(raw_path):
         if limit is not None and seeds_processed >= limit:
             break
 
-        seed_messages = build_seed_messages(bad_text, good_text)
-        seed_rng = rng_seed + seeds_processed if rng_seed is not None else None
-        
-        synthetic_conversations = generator.generate(
-            seed_messages,
-            variations=variations,
-            rng_seed=seed_rng,
-        )
+        seed_batch.append((line_number, bad_text, good_text))
 
-        packaged: List[Dict[str, object]] = []
-        for idx, convo in enumerate(synthetic_conversations, start=1):
-            record: Dict[str, object] = {
-                "seed_line": line_number,
-                "variation": idx,
-                "messages": convo,
-            }
-            
-            if include_seed:
-                record["seed"] = seed_messages
-                
-            packaged.append(record)
+        # Process batch when full or at end
+        if len(seed_batch) >= SEED_BATCH_SIZE or (limit is not None and seeds_processed + len(seed_batch) >= limit):
+            batch_start = time.time()
 
-        if packaged:
-            write_conversations(output_path, packaged)
-            conversations_written += len(packaged)
+            # Process all seeds in this batch
+            for seed_line, bad, good in seed_batch:
+                seed_messages = build_seed_messages(bad, good)
+                seed_rng = rng_seed + seeds_processed if rng_seed is not None else None
 
-        seeds_processed += 1
-        if seeds_processed % log_every == 0:
-            print(
-                f"Processed {seeds_processed} seeds -> {conversations_written} synthetic conversations"
+                synthetic_conversations = generator.generate(
+                    seed_messages,
+                    variations=variations,
+                    rng_seed=seed_rng,
+                )
+
+                packaged: List[Dict[str, object]] = []
+                for idx, convo in enumerate(synthetic_conversations, start=1):
+                    record: Dict[str, object] = {
+                        "seed_line": seed_line,
+                        "variation": idx,
+                        "messages": convo,
+                    }
+
+                    if include_seed:
+                        record["seed"] = seed_messages
+
+                    packaged.append(record)
+
+                if packaged:
+                    write_conversations(output_path, packaged)
+                    conversations_written += len(packaged)
+
+                seeds_processed += 1
+
+            batch_time = time.time() - batch_start
+            seed_batch.clear()
+
+            if seeds_processed % log_every == 0:
+                elapsed = time.time() - start_time
+                seeds_per_sec = seeds_processed / elapsed
+                conversations_per_sec = conversations_written / elapsed
+                print(
+                    f"[{seeds_processed:>6d}] Processed {seeds_processed} seeds -> {conversations_written} conversations | "
+                    f"{seeds_per_sec:.2f} seeds/s | {conversations_per_sec:.2f} convos/s | "
+                    f"Last batch: {batch_time:.2f}s"
+                )
+
+    # Process any remaining seeds in the final batch
+    if seed_batch:
+        batch_start = time.time()
+
+        for seed_line, bad, good in seed_batch:
+            seed_messages = build_seed_messages(bad, good)
+            seed_rng = rng_seed + seeds_processed if rng_seed is not None else None
+
+            synthetic_conversations = generator.generate(
+                seed_messages,
+                variations=variations,
+                rng_seed=seed_rng,
             )
 
+            packaged: List[Dict[str, object]] = []
+            for idx, convo in enumerate(synthetic_conversations, start=1):
+                record: Dict[str, object] = {
+                    "seed_line": seed_line,
+                    "variation": idx,
+                    "messages": convo,
+                }
+
+                if include_seed:
+                    record["seed"] = seed_messages
+
+                packaged.append(record)
+
+            if packaged:
+                write_conversations(output_path, packaged)
+                conversations_written += len(packaged)
+
+            seeds_processed += 1
+
+    elapsed_total = time.time() - start_time
+    avg_seeds_per_sec = seeds_processed / elapsed_total if elapsed_total > 0 else 0
+    avg_conversations_per_sec = conversations_written / elapsed_total if elapsed_total > 0 else 0
+
     print(
-        f"Done. Seeds processed: {seeds_processed}, synthetic conversations written: {conversations_written}"
+        f"\nDone! Seeds processed: {seeds_processed}, synthetic conversations written: {conversations_written}"
     )
-    
+    print(
+        f"Total time: {elapsed_total:.2f}s | Avg: {avg_seeds_per_sec:.2f} seeds/s, {avg_conversations_per_sec:.2f} convos/s"
+    )
     print(f"Output saved to: {output_path}")
 
 

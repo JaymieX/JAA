@@ -73,7 +73,7 @@ class SythDataGen:
         variations: int = 3,
         rng_seed: Optional[int] = None,
     ) -> List[List[Dict[str, str]]]:
-        """Return synthetic conversations built from independently generated user/assistant turns."""
+        """Return synthetic conversations built from batch-generated user/assistant turns."""
         if variations <= 0:
             return []
 
@@ -81,17 +81,19 @@ class SythDataGen:
         assistant_seed = self._get_latest_content(seed_conversation, "assistant")
 
         rng = random.Random(rng_seed) if rng_seed is not None else random
-        results: List[List[Dict[str, str]]] = []
 
-        for _ in range(variations):
-            user_variant = self._generate_user_variant(user_seed)
-            assistant_variant = self._generate_assistant_variant(assistant_seed)
+        # Generate variations in batch for better GPU utilization
+        user_variants = self._generate_user_variants_batch(user_seed, variations)
+        assistant_variants = self._generate_assistant_variants_batch(assistant_seed, variations)
+
+        results: List[List[Dict[str, str]]] = []
+        for i in range(variations):
             system_message = self._choose_system_prompt(rng)
             results.append(
                 [
                     system_message,
-                    {"role": "user", "content": user_variant},
-                    {"role": "assistant", "content": assistant_variant},
+                    {"role": "user", "content": user_variants[i]},
+                    {"role": "assistant", "content": assistant_variants[i]},
                 ]
             )
 
@@ -151,12 +153,62 @@ class SythDataGen:
             
         raise ValueError(f"Seed conversation missing a '{role}' message.")
 
+    def _generate_user_variants_batch(self, source_text: str, count: int) -> List[str]:
+        """Generate multiple user variants in a single batch call."""
+        prompts = []
+        for _ in range(count):
+            prompt = self.tokenizer.apply_chat_template(
+                [
+                    {"role": "system", "content": gen_prompts.USER_VARIATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": source_text},
+                ],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            prompts.append(prompt)
+
+        # Batch generation
+        outputs = self.llm(prompts, generation_config=self.gen_cfg, return_full_text=False)
+
+        # Handle both single and batch output formats
+        if len(outputs) > 0 and isinstance(outputs[0], list):
+            # Batch format: list of lists
+            return [self._clean_generated_text(output[0]["generated_text"].strip()) for output in outputs]
+        else:
+            # Single format: list of dicts
+            return [self._clean_generated_text(output["generated_text"].strip()) for output in outputs]
+
+    def _generate_assistant_variants_batch(self, source_text: str, count: int) -> List[str]:
+        """Generate multiple assistant variants in a single batch call."""
+        prompts = []
+        for _ in range(count):
+            prompt = self.tokenizer.apply_chat_template(
+                [
+                    {"role": "system", "content": gen_prompts.ASSISTANT_VARIATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": source_text},
+                ],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            prompts.append(prompt)
+
+        # Batch generation
+        outputs = self.llm(prompts, generation_config=self.gen_cfg, return_full_text=False)
+
+        # Handle both single and batch output formats
+        if len(outputs) > 0 and isinstance(outputs[0], list):
+            # Batch format: list of lists
+            return [self._clean_generated_text(output[0]["generated_text"].strip()) for output in outputs]
+        else:
+            # Single format: list of dicts
+            return [self._clean_generated_text(output["generated_text"].strip()) for output in outputs]
+
     def _generate_user_variant(self, source_text: str) -> str:
         prompt_messages = [
             {"role": "system", "content": gen_prompts.USER_VARIATION_SYSTEM_PROMPT},
             {"role": "user", "content": source_text},
         ]
-        
+
         raw = self._run_chat(prompt_messages)
         return self._clean_generated_text(raw)
 
@@ -165,7 +217,7 @@ class SythDataGen:
             {"role": "system", "content": gen_prompts.ASSISTANT_VARIATION_SYSTEM_PROMPT},
             {"role": "user", "content": source_text},
         ]
-        
+
         raw = self._run_chat(prompt_messages)
         return self._clean_generated_text(raw)
 

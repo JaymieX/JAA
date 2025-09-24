@@ -39,21 +39,24 @@ def convert_juliet_to_sft():
                 data = json.loads(line.strip())
 
                 # Extract data
-                user_content = data.get("bad", "")  # vulnerable code
-                assistant_content = data.get("good", "")  # fixed code
+                user_content = data.get("bad", "")       # vulnerable code
+                assistant_content = data.get("good", "") # fixed code
 
                 # Skip if missing essential data
                 if not user_content or not assistant_content:
                     print(f"Skipping entry {i+1} - missing bad or good")
                     continue
 
-                # Create SFT conversation format
-                conversation_text = f"<|system|>{system_content}<|user|>{user_content}<|assistant|>{assistant_content}<|endoftext|>"
-
+                # --- Write Unsloth SFT "conversations" format ---
                 sft_entry = {
-                    "text": conversation_text,
-                    "name": f"juliet_{i+1}"
+                    "name": f"juliet_{i+1}",
+                    "conversations": [
+                        {"role": "system", "content": system_content},
+                        {"role": "user", "content": user_content},
+                        {"role": "assistant", "content": assistant_content},
+                    ]
                 }
+                # ----------------------------------------------------------------
 
                 # Write to output file
                 outfile.write(json.dumps(sft_entry, ensure_ascii=False) + '\n')

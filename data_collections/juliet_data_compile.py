@@ -1,10 +1,14 @@
 import json
+import random
 import sys
 from pathlib import Path
 
 # Add parent directory to path to import settings
 sys.path.append(str(Path(__file__).parent.parent))
 from settings import config
+from sft_sys_prompts import SYSTEM_PROMPTS
+
+RNG_SEED = 1337
 
 def convert_juliet_to_sft():
     """Convert Juliet raw data to SFT format"""
@@ -21,13 +25,6 @@ def convert_juliet_to_sft():
 
     print(f"Input: {input_file}")
     print(f"Output: {output_file}")
-
-    system_content = (
-        "You are a helpful cyber security programming assistant. "
-        "Given a vulnerable code snippet, "
-        "output only the corrected code. "
-        "Do not include explanations, markdown, or extra text."
-    )
 
     processed_count = 0
 
@@ -46,6 +43,8 @@ def convert_juliet_to_sft():
                 if not user_content or not assistant_content:
                     print(f"Skipping entry {i+1} - missing bad or good")
                     continue
+                
+                system_content = random.Random(RNG_SEED).choice(SYSTEM_PROMPTS)["content"]
 
                 # --- Write Unsloth SFT "conversations" format ---
                 sft_entry = {

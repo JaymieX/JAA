@@ -1,5 +1,4 @@
 # Core ML and AI
-unsloth
 peft
 accelerate
 bitsandbytes

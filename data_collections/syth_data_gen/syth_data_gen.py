@@ -205,8 +205,8 @@ class SythDataGen:
             prompts.append(prompt)
 
             # Debug: Print first prompt to verify system prompt is applied correctly
-            if i == 0:
-                print(f"FULL PROMPT SENT TO MODEL ({variant_type}):\n{prompt}\n{'='*50}")
+            # if i == 0:
+            #     print(f"FULL PROMPT SENT TO MODEL ({variant_type}):\n{prompt}\n{'='*50}")
 
         # Convert to Dataset
         dataset = Dataset.from_dict({"text": prompts})

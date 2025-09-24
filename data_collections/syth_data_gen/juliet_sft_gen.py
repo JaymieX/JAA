@@ -7,6 +7,7 @@ back to the raw data directory as `juliet_sft.jsonl`.
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -71,11 +72,30 @@ def iter_juliet_raw(raw_path: Path) -> Iterator[RawRecord]:
             yield line_number, bad, good
 
 
+def strip_comments_conservative(source_code: str) -> str:
+    """
+    Remove comments from source code while preserving structure and functionality.
+    Conservative approach that only removes obvious comment blocks.
+    """
+    # Remove multi-line C-style comments /* ... */ but preserve strings containing them
+    # This regex avoids removing /* inside string literals
+    source_code = re.sub(r'/\*(?:[^"\']*(?:"[^"]*"|\'[^\']*\')?)*?\*/', '', source_code, flags=re.DOTALL)
+
+    # Remove single-line C++ style comments // but not URLs or strings
+    # Only remove if // appears at start of line (after whitespace) or after code
+    source_code = re.sub(r'(?:^|\s)//.*$', '', source_code, flags=re.MULTILINE)
+
+    return source_code.strip()
+
 def build_seed_messages(user_text: str, assistant_text: str) -> Messages:
-    """Return a minimal seed conversation for SythDataGen."""
+    """Return a minimal seed conversation for SythDataGen with comments removed."""
+    # Strip comments from both user and assistant text
+    clean_user_text      = strip_comments_conservative(user_text)
+    clean_assistant_text = strip_comments_conservative(assistant_text)
+
     return [
-        {"role": "user", "content": user_text},
-        {"role": "assistant", "content": assistant_text},
+        {"role": "user", "content": clean_user_text},
+        {"role": "assistant", "content": clean_assistant_text},
     ]
 
 

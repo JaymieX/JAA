@@ -10,23 +10,12 @@ from typing import Dict, List, Optional, Sequence, Union
 
 import torch
 from transformers import BitsAndBytesConfig, GenerationConfig, pipeline
+import syth_gen_prompt as gen_prompts
 
 SMALL_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
-LARGE_MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
+LARGE_MODEL_ID = "Qwen/Qwen2.5-Coder-14B-Instruct"
 
 DEFAULT_SYSTEM_MESSAGE = {"role": "system", "content": "You are a helpful assistant."}
-
-USER_VARIATION_SYSTEM_PROMPT = (
-    "You craft novel vulnerable code examples. When user send you code, return a rewritten snippet "
-    "you must preserves the vulnerability but changes the implementation details, rename functions and variables. Respond "
-    "with code only, no commentary or markdown."
-)
-
-ASSISTANT_VARIATION_SYSTEM_PROMPT = (
-    "You produce secure fixes for vulnerable code. When user send you code, respond with an "
-    "alternative corrected implementation that addresses the same issue, rename functions and variables. Respond with code only, "
-    "no commentary or markdown."
-)
 
 
 class ModelSize(str, Enum):
@@ -164,7 +153,7 @@ class SythDataGen:
 
     def _generate_user_variant(self, source_text: str) -> str:
         prompt_messages = [
-            {"role": "system", "content": USER_VARIATION_SYSTEM_PROMPT},
+            {"role": "system", "content": gen_prompts.USER_VARIATION_SYSTEM_PROMPT},
             {"role": "user", "content": source_text},
         ]
         
@@ -173,7 +162,7 @@ class SythDataGen:
 
     def _generate_assistant_variant(self, source_text: str) -> str:
         prompt_messages = [
-            {"role": "system", "content": ASSISTANT_VARIATION_SYSTEM_PROMPT},
+            {"role": "system", "content": gen_prompts.ASSISTANT_VARIATION_SYSTEM_PROMPT},
             {"role": "user", "content": source_text},
         ]
         

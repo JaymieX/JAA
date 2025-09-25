@@ -74,25 +74,15 @@ def fine_tune_qwen_model(
 
     print(f"Dataset size: {len(dataset)} samples (shuffled)")
 
-    # --- NEW: turn conversations -> text via Qwen-2.5 chat template ---
-    chat_tmpl = get_chat_template(tokenizer, chat_template="qwen-2.5")
-
-    def to_text(example):
-        conv = example.get("conversations")
-        if not conv:
-            # Fallback if a row is in old {text: ...} format
-            return {"text": example.get("text", "")}
+     # --- IMPORTANT: make it "conversational" for TRL ---
+    # TRL 0.22–0.23 expects a column named "messages" with [{role, content}, ...]
+    if "messages" not in dataset.column_names and "conversations" in dataset.column_names:
+        dataset = dataset.rename_column("conversations", "messages")
         
-        # Produce the fully formatted prompt+answer text
-        txt = chat_tmpl.apply_chat_template(
-            conv,
-            tokenize=False,
-            add_generation_prompt=False,  # we already include assistant messages
-        )
-        return {"text": txt}
-
-
-    dataset = dataset.map(to_text)
+    # Attach Qwen chat template to tokenizer so TRL knows how to render & mask
+    tokenizer = get_chat_template(tokenizer, chat_template="qwen-2.5")
+    
+    print(tokenizer.apply_chat_template(dataset[0]["messages"], tokenize=False, add_generation_prompt=False)[:600])
     
     # ---------------------------------------------------------------
     
@@ -118,13 +108,13 @@ def fine_tune_qwen_model(
         remove_unused_columns=False,
         group_by_length=True,
         report_to="none",
+        assistant_only_loss=True,
     )
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
-        dataset_text_field="text",
         max_seq_length=max_seq_length,
         args=train_cfg,
     )

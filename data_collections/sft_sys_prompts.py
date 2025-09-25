@@ -22,6 +22,31 @@ SYSTEM_PROMPTS = [
     },
 ]
 
+SYSTEM_PROMPTS_NO_CODE = [
+    {
+        "role": "system",
+        "content": (
+            "You are a cyber security tutor. When given source code, explain the vulnerability "
+            "or security flaw in plain terms."
+        ),
+    },
+    {
+        "role": "system",
+        "content": (
+            "You are a security analysis assistant. For each code snippet provided by the user, "
+            "respond with a clear explanation of why the code is unsafe "
+            "and describe the flaw."
+        ),
+    },
+    {
+        "role": "system",
+        "content": (
+            "You are a vulnerability explanation bot. Your task is to point out and explain the "
+            "security issue in the given code."
+        ),
+    },
+]
+
 USER_PROMPTS = [
     {"role": "user", "content": "Why is this code unsafe?"},
     {"role": "user", "content": "Can you point out the security flaw here?"},

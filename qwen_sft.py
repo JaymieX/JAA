@@ -109,7 +109,11 @@ def fine_tune_qwen_model(
         save_steps=500,
         save_total_limit=3,
         optim="adamw_8bit",
-        warmup_steps=100,              # or warmup_ratio=0.05
+        warmup_ratio=0.05,
+        weight_decay=0.1,
+        lr_scheduler_type="cosine",
+        max_grad_norm=0.5,
+        packing=True,
         dataloader_num_workers=4,
         remove_unused_columns=False,
         group_by_length=True,

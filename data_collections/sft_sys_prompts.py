@@ -21,3 +21,16 @@ SYSTEM_PROMPTS = [
         ),
     },
 ]
+
+USER_PROMPTS = [
+    {"role": "user", "content": "Why is this code unsafe?"},
+    {"role": "user", "content": "Can you point out the security flaw here?"},
+    {"role": "user", "content": "What makes this snippet vulnerable?"},
+    {"role": "user", "content": "Explain the weakness in this code."},
+    {"role": "user", "content": "What is insecure about this snippet?"},
+    {"role": "user", "content": "Identify the vulnerability in this code."},
+    {"role": "user", "content": "Tell me why this code is not secure."},
+    {"role": "user", "content": "What's wrong with this code from a security perspective?"},
+    {"role": "user", "content": "Highlight the bug that makes this code unsafe."},
+    {"role": "user", "content": "Which vulnerability exists in this example?"},
+]

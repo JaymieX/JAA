@@ -6,9 +6,10 @@ from pathlib import Path
 # Add parent directory to path to import settings
 sys.path.append(str(Path(__file__).parent.parent))
 from settings import config
-from sft_sys_prompts import SYSTEM_PROMPTS
+from sft_sys_prompts import SYSTEM_PROMPTS, USER_PROMPTS
 
-RNG_SEED = 1337
+RNG_SEED_S = 1337
+RNG_SEED_U = 6969
 
 def convert_code_vlun_dpo_to_sft():
     """Convert code_vlun_dpo raw data to SFT format"""
@@ -26,7 +27,8 @@ def convert_code_vlun_dpo_to_sft():
     print(f"Input: {input_file}")
     print(f"Output: {output_file}")
 
-    rng = random.Random(RNG_SEED)
+    rng_s = random.Random(RNG_SEED_S)
+    rng_u = random.Random(RNG_SEED_U)
     processed_count = 0
 
     with open(input_file, 'r', encoding='utf-8') as infile, \
@@ -37,23 +39,26 @@ def convert_code_vlun_dpo_to_sft():
                 data = json.loads(line.strip())
 
                 # Extract data
-                user_content = data.get("rejected", "")    # vulnerable code
-                assistant_content = data.get("chosen", "") # fixed code
+                user_content_1      = data.get("rejected", "")      # vulnerable code
+                assistant_content_1 = data.get("chosen", "")        # fixed code
+                assistant_content_2 = data.get("vulnerability", "") # explaination
 
                 # Skip if missing essential data
-                if not user_content or not assistant_content:
+                if not user_content_1 or not assistant_content_1 or not assistant_content_2:
                     print(f"Skipping entry {i+1} - missing rejected or chosen")
                     continue
                 
-                system_content = rng.choice(SYSTEM_PROMPTS)["content"]
+                system_content = rng_s.choice(SYSTEM_PROMPTS)["content"]
+                user_content_2 = rng_u.choice(USER_PROMPTS)["content"]
 
                 # --- Write Unsloth SFT "conversations" format ---
                 sft_entry = {
-                    "name": f"code_vlun_dpo_{i+1}",
                     "conversations": [
                         {"role": "system", "content": system_content},
-                        {"role": "user", "content": user_content},
-                        {"role": "assistant", "content": assistant_content},
+                        {"role": "user", "content": user_content_1},
+                        {"role": "assistant", "content": assistant_content_1},
+                        {"role": "user", "content": user_content_2},
+                        {"role": "assistant", "content": assistant_content_2},
                     ]
                 }
                 # ----------------------------------------------------------------

@@ -1,7 +1,7 @@
 from unsloth import FastLanguageModel
 from transformers import AutoTokenizer, TrainingArguments
 from datasets import load_dataset
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer, SFTConfig
 import sys
 from pathlib import Path
 
@@ -91,39 +91,29 @@ def fine_tune_qwen_model(
         )
         return {"text": txt}
 
+
     dataset = dataset.map(to_text)
-    
-    # --- DEBUG: peek at assistant header in flattened text ---
-    sample = dataset[0]["text"]
-    print("\n=== SAMPLE PREVIEW (first 600 chars) ===")
-    print(sample[:600].replace("\n", "\\n"))
-
-    candidates = ["<|assistant|>", "<|im_start|>assistant", "<|assistant>", "assistant"]
-    found_any = False
-    for tag in candidates:
-        idx = sample.find(tag)
-        if idx != -1:
-            found_any = True
-            s = max(0, idx - 120)
-            e = min(len(sample), idx + 120)
-            print(f"\nFound candidate tag {tag!r} at index {idx}. Context:")
-            print(sample[s:e].replace("\n", "\\n"))
-            print(f"Use this for response_template: {tag!r}")
-
-    if not found_any:
-        print("\nNo known assistant tag found in first sample. "
-            "Print more or increase preview window to inspect formatting.")
-    # ----------------------------------------------------------
     
     # ---------------------------------------------------------------
     
-    # Anti overfit
-    response_template = "<|assistant|>"
-
-    collator = DataCollatorForCompletionOnlyLM(
-        tokenizer=tokenizer,
-        response_template=response_template,
-        mlm=False,
+    train_cfg = SFTConfig(
+        output_dir=output_dir,
+        per_device_train_batch_size=batch_size,
+        gradient_accumulation_steps=gradient_steps,
+        num_train_epochs=epochs,
+        learning_rate=learning_rate,
+        fp16=False,
+        bf16=True,
+        logging_steps=25,
+        save_strategy="steps",
+        save_steps=500,
+        save_total_limit=3,
+        optim="adamw_8bit",
+        warmup_steps=100,              # or warmup_ratio=0.05
+        dataloader_num_workers=4,
+        remove_unused_columns=False,
+        group_by_length=True,
+        report_to="none",
     )
 
     trainer = SFTTrainer(
@@ -131,27 +121,8 @@ def fine_tune_qwen_model(
         tokenizer=tokenizer,
         train_dataset=dataset,
         dataset_text_field="text",
-        data_collator=collator,
         max_seq_length=max_seq_length,
-        args=TrainingArguments(
-            output_dir=output_dir,
-            per_device_train_batch_size=batch_size,
-            gradient_accumulation_steps=gradient_steps,
-            num_train_epochs=epochs,
-            learning_rate=learning_rate,
-            fp16=True,
-            bf16=False,
-            logging_steps=25,  # More frequent logging for large dataset
-            save_strategy="steps",  # Save by steps instead of epochs
-            save_steps=500,  # Save every 500 steps
-            optim="adamw_8bit",  # Use 8-bit Adam optimizer
-            warmup_steps=100,  # More warmup steps for large dataset
-            save_total_limit=3,  # Keep more checkpoints
-            dataloader_num_workers=4,  # Faster data loading
-            remove_unused_columns=False,
-            group_by_length=True,  # Group similar length sequences for efficiency
-            report_to="none",  # Disable wandb/tensorboard to save memory
-        )
+        args=train_cfg,
     )
 
     print("Starting fine-tuning...")

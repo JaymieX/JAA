@@ -106,33 +106,36 @@
 }
 
 /* Code block styling inside chat messages */
-.stChatMessage pre,
-.stChatMessage code {
+.stChatMessage pre {
     background: rgba(0,0,0,.65) !important;
     border: 1px solid rgba(255,255,255,.2) !important;
     border-radius: 8px !important;
     padding: 12px !important;
-    margin: 8px 0 !important;
+    margin: 8px 16px !important;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
     font-size: 0.9rem !important;
     line-height: 1.4 !important;
     color: #e8e8e8 !important;
     box-shadow: inset 0 2px 4px rgba(0,0,0,.3) !important;
+    max-width: calc(100% - 32px) !important;
+    overflow-x: auto !important;
 }
 
-/* Inline code styling */
+/* Inline code styling - lighter font weight */
 .stChatMessage p code {
     background: rgba(0,0,0,.7) !important;
-    border: 1px solid rgba(255,255,255,.25) !important;
+    border: 1px solid rgba(255,255,255,.15) !important;
     border-radius: 4px !important;
-    padding: 2px 6px !important;
-    margin: 0 2px !important;
+    padding: 1px 4px !important;
+    margin: 0 1px !important;
     font-size: 0.85rem !important;
-    color: #f0f0f0 !important;
+    font-weight: 400 !important;
+    color: #e8e8e8 !important;
     display: inline !important;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
 }
 
-/* Remove background/border for code inside pre blocks */
+/* Code inside pre blocks should have no extra styling */
 .stChatMessage pre code {
     background: none !important;
     border: none !important;
@@ -140,6 +143,8 @@
     margin: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    font-weight: 400 !important;
+    color: inherit !important;
 }
 
 /* Fix numbered sections - add line break after them */

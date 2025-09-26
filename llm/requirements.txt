@@ -1,4 +1,5 @@
 # Core ML and AI
+transformers
 peft
 accelerate
 bitsandbytes
@@ -7,6 +8,7 @@ bitsandbytes
 fastapi
 uvicorn
 python-multipart
+streamlit
 
 # Utilities
 dotenv

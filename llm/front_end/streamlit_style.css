@@ -1,0 +1,362 @@
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* CSS Variables */
+:root {
+    --bg: #0b0b12;
+    --card: #12121b;
+    --muted: #a5a6b0;
+    --text: #e9e9f1;
+    --accent: #915cff;
+    --accent-2: #ff7bd3;
+    --radius: 16px;
+}
+
+/* Main app styling */
+.stApp {
+    background: radial-gradient(1200px 800px at 80% -10%, rgba(145,92,255,.15), transparent 60%),
+               radial-gradient(1000px 700px at -10% 100%, rgba(255,123,211,.10), transparent 60%),
+               linear-gradient(180deg, #0a0a10 0%, #0b0b12 100%);
+    color: var(--text);
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    padding-bottom: 80px; /* Space for fixed footer */
+}
+
+/* Header styling */
+.header-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: calc(var(--radius) + 8px);
+    box-shadow: 0 20px 50px rgba(0,0,0,.45);
+}
+
+.badge {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.16), transparent 55%),
+               linear-gradient(135deg, rgba(145,92,255,.35), rgba(255,123,211,.30));
+    border: 1px solid rgba(255, 255, 255, 0.058);
+    box-shadow: 0 0 24px rgba(145,92,255,.45), 0 0 56px rgba(255,123,211,.25);
+    font-size: 28px;
+}
+
+.title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.4px;
+}
+
+.subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+/* Chat container styling */
+.stChatMessage {
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)) !important;
+    border: 1px solid rgba(255,255,255,.15) !important;
+    border-radius: 14px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,.40), 0 0 0 1px rgba(255,255,255,.05) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* User message styling */
+.stChatMessage[data-testid="chat-message-user"] {
+    background: linear-gradient(180deg, rgba(145,92,255,.35), rgba(145,92,255,.20)) !important;
+    border: 1px solid rgba(145,92,255,.60) !important;
+    border-bottom-right-radius: 6px !important;
+    box-shadow: 0 8px 22px rgba(145,92,255,.25),
+                0 0 0 1px rgba(145,92,255,.20),
+                inset 0 1px 0 rgba(255,255,255,.15) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.stChatMessage[data-testid="chat-message-user"] p {
+    color: #e8e2ff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.3) !important;
+}
+
+/* Assistant message styling */
+.stChatMessage[data-testid="chat-message-assistant"] {
+    background: linear-gradient(180deg, rgba(255,123,211,.30), rgba(255,123,211,.15)) !important;
+    border: 1px solid rgba(255,123,211,.55) !important;
+    border-bottom-left-radius: 6px !important;
+    box-shadow: 0 8px 20px rgba(255,123,211,.25),
+                0 0 0 1px rgba(255,123,211,.20),
+                inset 0 1px 0 rgba(255,255,255,.15) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.stChatMessage[data-testid="chat-message-assistant"] p {
+    color: #fff0f9 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.3) !important;
+}
+
+/* Code block styling inside chat messages */
+.stChatMessage pre,
+.stChatMessage code {
+    background: rgba(0,0,0,.65) !important;
+    border: 1px solid rgba(255,255,255,.2) !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    margin: 8px 0 !important;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+    color: #e8e8e8 !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.3) !important;
+}
+
+/* Inline code styling */
+.stChatMessage p code {
+    background: rgba(0,0,0,.7) !important;
+    border: 1px solid rgba(255,255,255,.25) !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    margin: 0 2px !important;
+    font-size: 0.85rem !important;
+    color: #f0f0f0 !important;
+    display: inline !important;
+}
+
+/* Remove background/border for code inside pre blocks */
+.stChatMessage pre code {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Fix numbered sections - add line break after them */
+.stChatMessage strong {
+    display: block !important;
+    margin: 16px 0 8px 0 !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    line-height: 1.4 !important;
+}
+
+/* Chat input styling */
+.stChatInput {
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text) !important;
+}
+
+.stChatInput:focus {
+    border-color: rgba(145,92,255,.4) !important;
+    box-shadow: 0 0 0 3px rgba(145,92,255,.15) !important;
+}
+
+/* Mode toggle styling */
+.mode-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.stSelectbox > div {
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: 999px !important;
+    color: var(--text) !important;
+}
+
+.stSelectbox > div > div {
+    background: rgba(255,255,255,.06) !important;
+    color: var(--text) !important;
+}
+
+.stSelectbox input {
+    color: var(--text) !important;
+}
+
+/* Audio input styling */
+div[data-testid="stAudioInput"] {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0;
+}
+
+div[data-testid="stAudioInput"] button {
+    background: linear-gradient(180deg, #a47aff, #8f5aff) !important;
+    border: none !important;
+    border-radius: 999px !important;
+    padding: 12px 24px !important;
+    color: white !important;
+    font-size: 1rem !important;
+    cursor: pointer !important;
+    transition: transform 0.14s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+    box-shadow: 0 8px 24px rgba(145,92,255,.45) !important;
+    letter-spacing: 0.2px !important;
+}
+
+div[data-testid="stAudioInput"] button:hover {
+    transform: translateY(-1px) !important;
+    filter: brightness(1.03) !important;
+}
+
+div[data-testid="stAudioInput"] button:active {
+    transform: translateY(0) !important;
+}
+
+/* Recording state styling */
+div[data-testid="stAudioInput"] button[data-recording="true"] {
+    background: linear-gradient(180deg, #ff7b7b, #ff4f6b) !important;
+    box-shadow: 0 10px 26px rgba(255,100,140,.55), 0 0 0 6px rgba(255,100,140,.15) !important;
+    animation: pulse 1.4s ease-in-out infinite !important;
+}
+
+@keyframes pulse {
+    0%, 100% { filter: brightness(1) !important; }
+    50% { filter: brightness(1.1) !important; }
+}
+
+/* Status indicator */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(145,92,255,.18);
+    border: 1px solid rgba(145,92,255,.35);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: #d7ccff;
+    box-shadow: 0 8px 22px rgba(145,92,255,.25);
+    margin-bottom: 16px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, #915cff);
+    box-shadow: 0 0 8px rgba(145,92,255,.65);
+}
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Floating sparkles animation */
+.sparkle {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle at 30% 30%, #fff 0%, transparent 60%);
+    filter: blur(0.2px);
+    opacity: 0.75;
+    animation: float 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.sparkle.s1 {
+    top: 10%;
+    left: 7%;
+    animation-delay: 0s;
+}
+
+.sparkle.s2 {
+    top: 82%;
+    left: 92%;
+    animation-delay: 1.2s;
+}
+
+.sparkle.s3 {
+    top: 52%;
+    left: 4%;
+    animation-delay: 2.6s;
+}
+
+.sparkle.s4 {
+    top: 6%;
+    left: 88%;
+    animation-delay: 3.8s;
+}
+
+.sparkle.s5 {
+    top: 94%;
+    left: 18%;
+    animation-delay: 5.1s;
+}
+
+@keyframes float {
+    0% { transform: translateY(0) scale(1); opacity: 0.75; }
+    50% { transform: translateY(-10px) scale(1.15); opacity: 0.95; }
+    100% { transform: translateY(0) scale(1); opacity: 0.75; }
+}
+
+/* Custom scrollbar */
+.stContainer::-webkit-scrollbar {
+    width: 10px;
+}
+
+.stContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.stContainer::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6f54c2, #915cff);
+    border-radius: 999px;
+}
+
+/* Better button styling for send button */
+.stChatInput button {
+    background: linear-gradient(180deg, #a47aff, #8f5aff) !important;
+    border: none !important;
+    border-radius: 999px !important;
+    color: white !important;
+    transition: transform 0.14s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+    box-shadow: 0 8px 24px rgba(145,92,255,.45) !important;
+}
+
+.stChatInput button:hover {
+    transform: translateY(-1px) !important;
+    filter: brightness(1.03) !important;
+}
+
+.stChatInput button:active {
+    transform: translateY(0) !important;
+}
+
+/* Persistent footer that stays visible during inference */
+body::after {
+    content: "Powered by Qwen2.5, Whisper, Facebook Bart Cnn and Coqui TTS | Non-commercial demo | AI agent may make mistakes - Education only";
+    white-space: pre-line;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background: rgba(11, 11, 18, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,.06);
+    text-align: center;
+    padding: 12px 20px;
+    color: #a5a6b0;
+    font-size: 0.95rem;
+    z-index: 999999;
+    pointer-events: none;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.3);
+    line-height: 1.4;
+}

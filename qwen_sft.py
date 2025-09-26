@@ -82,6 +82,28 @@ def fine_tune_qwen_model(
     # Attach Qwen chat template to tokenizer so TRL knows how to render & mask
     tokenizer = get_chat_template(tokenizer, chat_template="qwen-2.5")
     
+    def formatting_func(example):
+        msgs = example["messages"]
+        # Single example: msgs = [ {role, content}, ... ]
+        if isinstance(msgs, list) and msgs and isinstance(msgs[0], dict):
+            rendered = tokenizer.apply_chat_template(
+                msgs, tokenize=False, add_generation_prompt=False
+            )
+            
+            return [rendered]  # must return a list
+        
+        # Batched: msgs = [ [ {role, content}, ... ], [ ... ], ... ]
+        rendered_batch = []
+        for conv in msgs:
+            rendered_batch.append(
+                tokenizer.apply_chat_template(
+                    conv, tokenize=False, add_generation_prompt=False
+                )
+            )
+            
+        return rendered_batch
+    
+    
     print(tokenizer.apply_chat_template(dataset[0]["messages"], tokenize=False, add_generation_prompt=False)[:600])
     
     # ---------------------------------------------------------------
@@ -103,7 +125,7 @@ def fine_tune_qwen_model(
         weight_decay=0.1,
         lr_scheduler_type="cosine",
         max_grad_norm=0.5,
-        packing=True,
+        packing=False,
         dataloader_num_workers=4,
         remove_unused_columns=False,
         group_by_length=True,
@@ -115,6 +137,7 @@ def fine_tune_qwen_model(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
+        formatting_func=formatting_func,
         max_seq_length=max_seq_length,
         args=train_cfg,
     )

@@ -3,6 +3,7 @@ transformers
 peft
 accelerate
 bitsandbytes
+langgraph
 
 # FastAPI server
 fastapi

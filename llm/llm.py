@@ -111,6 +111,13 @@ class LLM:
         self.notion     = Notion(notion_token, notion_page_id)
         
         self.is_notion_connected = self.notion.is_connected()
+        
+        # EOS ids
+        tok = self.llm.tokenizer
+        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
+
+        im_end = tok.convert_tokens_to_ids("<|im_end|>")
+        self.eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
 
         # Initialize LangGraph workflow
         self._setup_langgraph_workflow()
@@ -149,30 +156,28 @@ class LLM:
         workflow.add_edge("vulnerability_check", END)
 
         self.workflow = workflow.compile()
+        
+        
+    def _gen(self, messages, gen_cfg : GenerationConfig):
+        prompt = self.llm.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False, add_generation_prompt=True
+        )
+        
+        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
+        return out[0]["generated_text"].strip()
 
 
     def _router_node(self, state: AgentState) -> AgentState:
         """Router node that decides which agent to use"""
-        prompt = self.llm.tokenizer.apply_chat_template(
-            [llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
-            tokenize=False, add_generation_prompt=True
-        )
-
-        tok = self.llm.tokenizer
-        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
-
-        im_end = tok.convert_tokens_to_ids("<|im_end|>")
-        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
-
         gen_cfg = GenerationConfig(
             max_new_tokens=50,
             do_sample=False,
             repetition_penalty=1.05,
-            eos_token_id=eos_ids
+            eos_token_id=self.eos_ids
         )
 
-        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
-        router_output = out[0]["generated_text"].strip()
+        router_output = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg)
 
         try:
             # Attempt to extract function name if we failed default to human_text
@@ -217,29 +222,16 @@ class LLM:
         """Human text conversation agent node"""
         print(f"FUNCTION CALL: human_text()")
 
-        # Use existing generate_response logic
-        prompt = self.llm.tokenizer.apply_chat_template(
-            [llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:],
-            tokenize=False, add_generation_prompt=True
-        )
-
-        tok = self.llm.tokenizer
-        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
-
-        im_end = tok.convert_tokens_to_ids("<|im_end|>")
-        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
-
         gen_cfg = GenerationConfig(
             max_new_tokens=160,
             do_sample=True,
             temperature=0.6,
             top_p=0.9,
             repetition_penalty=1.05,
-            eos_token_id=eos_ids
+            eos_token_id=self.eos_ids
         )
 
-        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
-        response = out[0]["generated_text"].strip()
+        response = self._gen([llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:], gen_cfg)
 
         state["final_response"] = response
         return state
@@ -249,29 +241,16 @@ class LLM:
         """Vulnerability check agent node"""
         print(f"FUNCTION CALL: vulnerability_check()")
 
-        # Construct prompt
-        prompt = self.llm.tokenizer.apply_chat_template(
-            [llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}],
-            tokenize=False, add_generation_prompt=True
-        )
-
-        tok = self.llm.tokenizer
-        if tok.pad_token_id is None: tok.pad_token = tok.eos_token
-
-        im_end = tok.convert_tokens_to_ids("<|im_end|>")
-        eos_ids = [tok.eos_token_id] + ([im_end] if im_end is not None else [])
-
         gen_cfg = GenerationConfig(
             max_new_tokens=400,
             do_sample=True,
             temperature=0.6,
             top_p=0.9,
             repetition_penalty=1.05,
-            eos_token_id=eos_ids
+            eos_token_id=self.eos_ids
         )
 
-        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
-        response = out[0]["generated_text"].strip()
+        response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg)
 
         state["final_response"] = response
         return state

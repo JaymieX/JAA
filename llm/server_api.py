@@ -12,7 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 #from asr import Asr, ModelSize
-from llm import LLM, LLMProFile
+from llm import LLM
+from llm_loader import LLMProFile
 #from tts_engine import TTSEngine
 
 

@@ -1,13 +1,11 @@
-import json
 import chromadb
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from llama_index.core import VectorStoreIndex, Document, StorageContext
+from typing import List, Dict, Any
+from llama_index.core import VectorStoreIndex, StorageContext, Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.retrievers.bm25 import BM25Retriever
 from llama_index.embeddings.fastembed import FastEmbedEmbedding
 from llama_index.core import Settings
-from llama_index.core.text_splitter import TokenTextSplitter
 
 
 class RAGEngine:
@@ -28,7 +26,6 @@ class RAGEngine:
         else:
             self.persist_dir = persist_dir
 
-        self.documents      = []
         self.vector_index   = None
         self.bm25_retriever = None
 
@@ -36,129 +33,70 @@ class RAGEngine:
         self.embed_model = FastEmbedEmbedding(model_name="BAAI/bge-large-en-v1.5")
         Settings.embed_model = self.embed_model
 
-        # Setup text splitter for chunking (512 tokens with overlap)
-        self.text_splitter = TokenTextSplitter(
-            chunk_size    = 400,  # Leave room for special tokens
-            chunk_overlap = 50,
-            separator     = " "
-        )
+        # Load existing ChromaDB
+        self._load_chromadb()
 
-        # Initialize ChromaDB
-        self._setup_chromadb()
-
-    def _setup_chromadb(self):
-        """Setup ChromaDB client and collection"""
+    def _load_chromadb(self):
+        """Load existing ChromaDB collection"""
         self.chroma_client = chromadb.PersistentClient(path=self.persist_dir)
 
-        # Get or create collection
         try:
             self.chroma_collection = self.chroma_client.get_collection(name=self.collection_name)
             print(f"Loaded existing collection: {self.collection_name}")
-        except Exception:
-            self.chroma_collection = self.chroma_client.create_collection(name=self.collection_name)
-            print(f"Created new collection: {self.collection_name}")
 
-        # Setup vector store
-        self.vector_store    = ChromaVectorStore(chroma_collection=self.chroma_collection)
-        self.storage_context = StorageContext.from_defaults(
-            vector_store=self.vector_store
-        )
+            # Setup vector store
+            self.vector_store = ChromaVectorStore(chroma_collection=self.chroma_collection)
+            self.storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
 
-    def load_json_data(self, json_file_path: str) -> int:
-        """
-        Load JSON snippets and convert to LlamaIndex Documents
+            # Load vector index from existing data
+            self.vector_index = VectorStoreIndex.from_vector_store(
+                vector_store = self.vector_store,
+                embed_model  = self.embed_model
+            )
 
-        Args:
-            json_file_path: Path to JSON file containing snippets
+            # Rebuild BM25 retriever from ChromaDB data
+            self._rebuild_bm25_retriever()
 
-        Returns:
-            Number of documents loaded
-        """
-        try:
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Handle different JSON structures
-            if isinstance(data, list):
-                json_items = data
-            elif isinstance(data, dict) and 'data' in data:
-                json_items = data['data']
-            else:
-                json_items = [data]
-
-            self.documents = []
-            for i, item in enumerate(json_items):
-                # Extract text content
-                if isinstance(item, dict):
-                    # Try common text fields
-                    text_content = (
-                        item.get('content') or
-                        item.get('text') or
-                        item.get('description') or
-                        str(item)
-                    )
-
-                    # Create metadata
-                    metadata = {
-                        'id':     item.get('id', f"doc_{i}"),
-                        'title':  item.get('title', f"Document {i}"),
-                        'source': json_file_path
-                    }
-
-                    # Add any additional metadata fields
-                    for key, value in item.items():
-                        if key not in ['content', 'text', 'description'] and isinstance(value, (str, int, float)):
-                            metadata[key] = value
-                    
-                else:
-                    text_content = str(item)
-                    metadata = {'id': f"doc_{i}", 'title': f"Document {i}", 'source': json_file_path}
-
-                # Split document into chunks
-                chunks = self.text_splitter.split_text(text_content)
-
-                # Create a document for each chunk
-                for chunk_idx, chunk_text in enumerate(chunks):
-                    chunk_metadata = metadata.copy()
-                    chunk_metadata['chunk_idx'] = chunk_idx
-                    chunk_metadata['original_doc_id'] = metadata['id']
-                    chunk_metadata['id'] = f"{metadata['id']}_chunk_{chunk_idx}"
-
-                    chunk_doc = Document(
-                        text     = chunk_text,
-                        metadata = chunk_metadata,
-                        doc_id   = chunk_metadata['id']
-                    )
-                    self.documents.append(chunk_doc)
-
-            # Count original documents (not chunks)
-            original_doc_count = len([d for d in self.documents if d.metadata.get('chunk_idx', 0) == 0])
-            print(f"Loaded {original_doc_count} documents ({len(self.documents)} chunks) from {json_file_path}")
-            return original_doc_count
+            print(f"✅ RAG Engine ready with {self.chroma_collection.count()} chunks")
 
         except Exception as e:
-            print(f"Error loading JSON data: {e}")
-            return 0
+            raise RuntimeError(f"Failed to load collection '{self.collection_name}'. "
+                             f"Make sure to run rag_build.py first. Error: {e}")
 
-    def build_index(self):
-        """Build vector index and BM25 retriever from loaded documents"""
-        if not self.documents:
-            raise ValueError("No documents loaded. Call load_json_data() first.")
+    def _rebuild_bm25_retriever(self):
+        """Rebuild BM25 retriever from ChromaDB data"""
+        try:
+            # Get all data from ChromaDB
+            results = self.chroma_collection.get(
+                include=['documents', 'metadatas']
+            )
 
-        # Build vector index with ChromaDB
-        self.vector_index = VectorStoreIndex.from_documents(
-            self.documents,
-            storage_context = self.storage_context,
-            embed_model     = self.embed_model
-        )
+            documents = []
+            for i, (doc_text, metadata) in enumerate(zip(results['documents'], results['metadatas'])):
+                if doc_text and doc_text.strip():  # Only non-empty documents
+                    doc = Document(
+                        text=doc_text,
+                        metadata=metadata or {},
+                        doc_id=metadata.get('id', f"doc_{i}") if metadata else f"doc_{i}"
+                    )
+                    
+                    documents.append(doc)
 
-        # Build BM25 retriever from documents directly
-        self.bm25_retriever = BM25Retriever.from_defaults(
-            nodes            = self.documents,
-            similarity_top_k = 10
-        )
+            if documents:
+                # Build BM25 retriever from documents
+                self.bm25_retriever = BM25Retriever.from_defaults(
+                    nodes            = documents,
+                    similarity_top_k = 10
+                )
+                print(f"   BM25 retriever built with {len(documents)} documents")
+                
+            else:
+                print("   ⚠️ No documents found, BM25 retriever not available")
+                self.bm25_retriever = None
 
-        print(f"Built indexes for {len(self.documents)} documents")
+        except Exception as e:
+            print(f"   ⚠️ Warning: Could not create BM25 retriever: {e}")
+            self.bm25_retriever = None
 
     def semantic_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -205,7 +143,7 @@ class RAGEngine:
             List of search results with scores and metadata
         """
         if not self.bm25_retriever:
-            raise ValueError("BM25 retriever not built. Call build_index() first.")
+            raise ValueError("BM25 retriever not available.")
 
         # Set similarity_top_k for this query
         self.bm25_retriever.similarity_top_k = top_k
@@ -238,9 +176,12 @@ class RAGEngine:
         Returns:
             List of search results with combined scores
         """
-        # Get results from both methods (ensure we don't exceed document count)
-        max_docs = len(self.documents)
-        search_k = min(top_k * 2, max_docs)
+        if not self.bm25_retriever:
+            raise ValueError("BM25 retriever not available for hybrid search.")
+
+        # Get results from both methods (ensure we don't exceed chunk count)
+        max_chunks = self.chroma_collection.count()
+        search_k = min(top_k * 2, max_chunks)
 
         semantic_results = self.semantic_search(query, search_k)
         keyword_results = self.keyword_search(query, search_k)

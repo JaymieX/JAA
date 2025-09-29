@@ -1,6 +1,7 @@
 import json
 import sys
 from pathlib import Path
+from rag_build import RAGBuilder
 from rag_engine import RAGEngine
 
 
@@ -161,10 +162,7 @@ def main():
     """Main demo function"""
     global rag
 
-    print("🔧 Initializing RAG Engine...")
-
-    # Initialize RAG engine (will use script directory for DB files)
-    rag = RAGEngine(collection_name="demo_collection")
+    print("🔧 RAG Demo Starting...")
 
     # Create sample data if it doesn't exist
     sample_file = Path(__file__).parent / "sample_data.json"
@@ -172,22 +170,28 @@ def main():
         print("📝 Creating sample data...")
         sample_file = create_sample_data()
 
-    # Load data and build index
-    print("📚 Loading JSON data...")
-    doc_count = rag.load_json_data(str(sample_file))
+    # Step 1: Build RAG database
+    print("🏗️ Building RAG database...")
+    builder = RAGBuilder(collection_name="demo_collection")
 
-    if doc_count == 0:
-        print("❌ Failed to load data. Exiting.")
+    success = builder.build_from_json(str(sample_file))
+    if not success:
+        print("❌ Failed to build database. Exiting.")
         return
 
-    print("🏗️ Building indexes...")
-    rag.build_index()
+    # Step 2: Initialize search engine
+    print("🔍 Initializing RAG search engine...")
+    try:
+        rag = RAGEngine(collection_name="demo_collection")
+    except RuntimeError as e:
+        print(f"❌ Failed to load RAG engine: {e}")
+        return
 
     # Show collection info
     info = rag.get_collection_info()
-    print(f"\n✅ RAG Engine Ready!")
+    print(f"\n✅ RAG Demo Ready!")
     print(f"   Collection: {info['collection_name']}")
-    print(f"   Documents: {info['document_count']}")
+    print(f"   Chunks: {info['document_count']}")
     print(f"   Vector Index: {info['has_vector_index']}")
     print(f"   BM25 Retriever: {info['has_bm25_retriever']}")
 

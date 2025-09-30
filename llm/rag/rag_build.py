@@ -66,61 +66,84 @@ class RAGBuilder:
 
     def load_json_data(self, json_dir_path: str) -> int:
         """
-        Load all json files from a directory and convert to LlamaIndex Documents with chunking
+        Load all JSON files from a directory and convert to LlamaIndex Documents with chunking
 
         Args:
-            json_dir_path: Path to directory containing json files
+            json_dir_path: Path to directory containing JSON files
 
         Returns:
             Number of original documents loaded
         """
         try:
-            # Read all json files from the directory
+            # Find all JSON files in the directory
             json_path = Path(json_dir_path)
-            reader = SimpleDirectoryReader(
-                input_dir=str(json_path),
-                required_exts=[".json"],
-                recursive=False
-            )
-            loaded_docs = reader.load_data()
+            json_files = list(json_path.glob("*.json"))
 
-            if not loaded_docs:
-                print(f"No json files found in {json_dir_path}")
+            if not json_files:
+                print(f"No JSON files found in {json_dir_path}")
                 return 0
 
             self.documents = []
-            for i, doc in enumerate(loaded_docs):
-                # Extract text content
-                text_content = doc.text
+            doc_counter = 0
 
-                # Create metadata from existing metadata or defaults
-                metadata = {
-                    'id':     doc.metadata.get('id', f"doc_{i}"),
-                    'title':  doc.metadata.get('title', doc.metadata.get('file_name', f"Document {i}")),
-                    'source': doc.metadata.get('file_path', json_dir_path)
-                }
+            for json_file in json_files:
+                # Read and parse JSON file
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
 
-                # Add any additional metadata fields
-                for key, value in doc.metadata.items():
-                    if key not in ['id', 'title', 'source'] and isinstance(value, (str, int, float)):
-                        metadata[key] = value
+                # Handle different JSON structures
+                if isinstance(data, list):
+                    json_items = data
+                elif isinstance(data, dict) and 'data' in data:
+                    json_items = data['data']
+                else:
+                    json_items = [data]
 
-                # Split document into chunks
-                chunks = self.text_splitter.split_text(text_content)
+                # Process each item in the JSON file
+                for item in json_items:
+                    # Extract text content
+                    if isinstance(item, dict):
+                        # Try common text fields
+                        text_content = (
+                            item.get('content') or
+                            item.get('text') or
+                            item.get('description') or
+                            str(item)
+                        )
 
-                # Create a document for each chunk
-                for chunk_idx, chunk_text in enumerate(chunks):
-                    chunk_metadata = metadata.copy()
-                    chunk_metadata['chunk_idx'] = chunk_idx
-                    chunk_metadata['original_doc_id'] = metadata['id']
-                    chunk_metadata['id'] = f"{metadata['id']}_chunk_{chunk_idx}"
+                        # Create metadata
+                        metadata = {
+                            'id':     item.get('id', f"doc_{doc_counter}"),
+                            'title':  item.get('title', json_file.name),
+                            'source': str(json_file)
+                        }
 
-                    chunk_doc = Document(
-                        text     = chunk_text,
-                        metadata = chunk_metadata,
-                        doc_id   = chunk_metadata['id']
-                    )
-                    self.documents.append(chunk_doc)
+                        # Add any additional metadata fields
+                        for key, value in item.items():
+                            if key not in ['content', 'text', 'description'] and isinstance(value, (str, int, float)):
+                                metadata[key] = value
+                    else:
+                        text_content = str(item)
+                        metadata = {'id': f"doc_{doc_counter}", 'title': json_file.name, 'source': str(json_file)}
+
+                    # Split document into chunks
+                    chunks = self.text_splitter.split_text(text_content)
+
+                    # Create a document for each chunk
+                    for chunk_idx, chunk_text in enumerate(chunks):
+                        chunk_metadata = metadata.copy()
+                        chunk_metadata['chunk_idx'] = chunk_idx
+                        chunk_metadata['original_doc_id'] = metadata['id']
+                        chunk_metadata['id'] = f"{metadata['id']}_chunk_{chunk_idx}"
+
+                        chunk_doc = Document(
+                            text     = chunk_text,
+                            metadata = chunk_metadata,
+                            doc_id   = chunk_metadata['id']
+                        )
+                        self.documents.append(chunk_doc)
+
+                    doc_counter += 1
 
             # Count original documents (not chunks)
             original_doc_count = len([d for d in self.documents if d.metadata.get('chunk_idx', 0) == 0])

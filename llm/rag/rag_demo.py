@@ -21,7 +21,7 @@ def print_results(results, search_type):
         print(f"Doc ID: {result['doc_id']}")
         print(f"Title: {result['metadata'].get('title', 'N/A')}")
         print(f"Category: {result['metadata'].get('category', 'N/A')}")
-        print(f"Text: {result['text'][:200]}...")
+        print(f"Text: {result['text']}...")
         print("-" * 30)
 
 
@@ -95,19 +95,19 @@ def run_demo_tests():
         print(f"\n🔍 SEMANTIC SEARCH")
         semantic_results = rag.semantic_search(query, top_k=2)
         for result in semantic_results:
-            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['text']} (Score: {result['score']:.3f})")
 
         # Keyword search
         print(f"\n🔤 KEYWORD SEARCH")
         keyword_results = rag.keyword_search(query, top_k=2)
         for result in keyword_results:
-            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['text']} (Score: {result['score']:.3f})")
 
         # Hybrid search
         print(f"\n🔀 HYBRID SEARCH")
         hybrid_results = rag.hybrid_search(query, top_k=2)
         for result in hybrid_results:
-            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['text']} (Score: {result['score']:.3f})")
 
 
 def main():
@@ -119,22 +119,28 @@ def main():
     # Create sample data if it doesn't exist
     sample_file = Path(__file__).parent / "pre_chunk"
 
-    # Step 1: Build RAG database
-    print("🏗️ Building RAG database...")
-    builder = RAGBuilder(collection_name="demo_collection")
-
-    success = builder.build_from_json(str(sample_file))
-    if not success:
-        print("❌ Failed to build database. Exiting.")
-        return
-
-    # Step 2: Initialize search engine
-    print("🔍 Initializing RAG search engine...")
+    # Try to load existing RAG database first
+    print("🔍 Checking for existing RAG database...")
     try:
         rag = RAGEngine(collection_name="demo_collection")
-    except RuntimeError as e:
-        print(f"❌ Failed to load RAG engine: {e}")
-        return
+        print("✅ Loaded existing RAG database")
+    except RuntimeError:
+        # Database doesn't exist, build it
+        print("🏗️ Building new RAG database...")
+        builder = RAGBuilder(collection_name="demo_collection")
+
+        success = builder.build_from_json(str(sample_file))
+        if not success:
+            print("❌ Failed to build database. Exiting.")
+            return
+
+        # Now load the newly built database
+        print("🔍 Initializing RAG search engine...")
+        try:
+            rag = RAGEngine(collection_name="demo_collection")
+        except RuntimeError as e:
+            print(f"❌ Failed to load RAG engine: {e}")
+            return
 
     # Show collection info
     info = rag.get_collection_info()

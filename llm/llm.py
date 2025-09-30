@@ -10,7 +10,7 @@ from langgraph.graph import StateGraph, END
 import llm_loader
 from summarize import Summarizer
 from notion import Notion
-#from search import Search
+from rag.rag_engine import RAGEngine
 import llm_prompts
 
 # LangGraph State Definition
@@ -32,7 +32,13 @@ class LLM:
             print("LLM fail to loaded.")
             return
         
-        #self.rag_search = Search()
+        try:
+            self.rag_search = RAGEngine(collection_name="rag_collection")
+            print("RAG Engine loaded.")
+        except Exception as e:
+            print(f"RAG Engine failed to load: {e}")
+            self.rag_search = None
+            
         self.summarizer = Summarizer()
         self.notion     = Notion(notion_token, notion_page_id)
         

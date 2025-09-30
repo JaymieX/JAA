@@ -184,4 +184,5 @@ cython_debug/
 data/
 temp/
 model/
+llm/rag/chroma_db/
 **/unsloth_compiled_cache/

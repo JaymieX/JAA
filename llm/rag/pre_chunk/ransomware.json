@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_rw_001",
+    "title": "Modern Ransomware Lifecycle and Tactics",
+    "content": "Contemporary ransomware campaigns typically progress through a repeatable lifecycle: initial access, staging, impact, and monetization. Initial access often leverages phishing, stolen credentials, vulnerable internet-facing services, or software supply-chain weaknesses. Staging focuses on persistence, discovery of shares and backups, and credential harvesting to widen reach. Impact techniques combine rapid encryption of high-value data with attempts to delete or corrupt snapshots and backups; many groups also exfiltrate files to apply pressure via publication threats (“double” or “multi” extortion). Operators increasingly prioritize speed to impact by pre-validating targets, deploying lightweight loaders, and using living-off-the-land binaries and scripts to blend into normal activity. File selection is guided by business criticality (databases, project repos, finance shares) while system areas needed for stability are usually avoided to preserve leverage. Monetization relies on deadlines, escalating threats, and communication portals; some actors provide file proofs to demonstrate access. Campaigns iterate quickly across victims, adapting playbooks and tooling to the environment to maintain velocity while minimizing observable noise.",
+    "category": "ransomware",
+    "tags": ["lifecycle", "extortion", "tradecraft", "encryption", "backups"]
+  },
+  {
+    "id": "doc_rw_002",
+    "title": "Initial Access: Common Vectors and Hardening Priorities",
+    "content": "Entry points favored by ransomware operators include credential reuse and phishing leading to remote access, exploitation of unpatched edge services (VPNs, web apps, file transfer appliances), weakly protected admin interfaces, and misconfigured cloud identities or storage. Exposure grows with unmanaged assets and long patch windows. High-value hardening actions emphasize identity controls (strong MFA with phishing resistance, conditional access, least-privilege admin paths), rapid patching of internet-facing software, and minimal inbound surface via application-layer gateways. Disable or restrict remote scripting where possible; require just-in-time elevation for privileged tasks. Asset discovery and configuration baselines help find weak points like shared local admin passwords, open RDP, overly permissive shares, or legacy protocols. Email security and endpoint controls reduce initial footholds, but segmentation and authenticated proxies limit blast radius after compromise. Measurable goals—time to patch critical edge flaws, percent of privileged sessions using strong MFA, and percentage of admins operating from hardened workstations—track progress against initial access risk.",
+    "category": "ransomware",
+    "tags": ["initial access", "phishing", "patching", "identity", "segmentation"]
+  },
+  {
+    "id": "doc_rw_003",
+    "title": "Resilience: Backups, Restoration, and Recovery Objectives",
+    "content": "Resilience planning aims to restore critical services under attack-driven disruption. Backups should follow diversified patterns (e.g., 3-2-1 with one offline or immutable copy) and be isolated from routine credentials to deter tampering. Snapshot and image strategies are paired with periodic test restores to verify integrity and speed. Recovery point and recovery time objectives (RPO/RTO) are defined per service, then validated with drills that include dependency mapping (databases, secrets, license servers) and priority sequencing. During restoration, secrets and credentials are rotated, newly rebuilt systems are re-hardened, and risky automations are disabled until telemetry is in place. Telemetry from backup platforms is monitored for mass deletion, encryption-like write bursts, or unusual administrative actions. Documentation captures owners, restore runbooks, and decision criteria for partial vs. full rebuilds. Success is measured by reliable, repeatable restores within target RTOs and minimal reintroduction of the pre-attack weaknesses that enabled impact.",
+    "category": "ransomware",
+    "tags": ["resilience", "backups", "RPO", "RTO", "restoration"]
+  },
+  {
+    "id": "doc_rw_004",
+    "title": "Detection and Telemetry for Ransomware Operations",
+    "content": "Detection emphasizes early signals in authentication, process/script execution, file I/O, and data movement. Useful telemetry includes process starts for interpreters and archivers, high-rate file edits on specific shares, attempts to delete snapshots or shadow copies, surges in entropy across modified files, and anomalous SMB or S3 access patterns. Identity-centric signals—new MFA enrollments, credential material access, or privilege use from unusual hosts—often precede impact. Canary files and decoy shares provide low-noise triggers when touched. Exfiltration may present as atypical egress volumes, new destinations, or compressed archives staged in temp locations. Detections favor behavioral patterns over static signatures to account for tool variation. High-fidelity alerts are paired with response playbooks that isolate endpoints, block suspicious principals, and protect backup control planes. Post-incident tuning promotes sustainable signal quality by reducing duplicate alerts and capturing the specific techniques observed in the environment.",
+    "category": "ransomware",
+    "tags": ["detection", "telemetry", "behavioral analytics", "exfiltration", "canary files"]
+  },
+  {
+    "id": "doc_rw_005",
+    "title": "RaaS Economics and Operator Playbooks",
+    "content": "Ransomware-as-a-Service (RaaS) separates development from operations through affiliate models. Platform owners supply builders, infrastructure, and negotiation portals, while affiliates handle intrusions and deployment. Revenue sharing and reputation systems incentivize reliability, leading to standardized playbooks focused on speed, consistent encryption outcomes, and coordinated pressure through leak sites. Toolchains are modular—initial access brokers, loaders, and commodity frameworks are swapped based on defenses encountered. Affiliates triage victims by backup posture, data value, and downtime sensitivity to maximize leverage. The result is repeatable campaigns with predictable timelines from initial foothold to extortion. Defenders benefit from understanding these business constraints: controls that raise operational costs (strong identity, segmented admin, immutable backups, strict egress) reduce affiliate success and may redirect efforts elsewhere. Metrics like time-to-encrypt after initial access and percentage of assets with viable offline restores indicate how resilient an environment is against playbook-driven operations.",
+    "category": "ransomware",
+    "tags": ["RaaS", "economics", "affiliates", "playbooks", "extortion"]
+  },
+  {
+    "id": "doc_rw_006",
+    "title": "Ransomware 3.0: LLM-Orchestrated and Self-Composing",
+    "content": "Emerging research describes ransomware that delegates planning and payload synthesis to large language models. Instead of shipping fixed binaries, an orchestrator carries natural-language task prompts and queries an LLM at runtime to generate environment-specific code, yielding polymorphic behavior across executions. A representative pipeline runs closed-loop phases—reconnaissance to summarize the host and files, leverage to classify high-value targets, launch to choose and execute actions such as encrypt, exfiltrate, or destroy, and notify to produce tailored ransom notes. Some prototypes embed lightweight interpreters to execute generated code in memory, prefer simple crypto constructions for ease of synthesis, and log artifacts to support autonomous retries. Because only selected files are touched and code changes each run, host-level footprints can be smaller and less signature-driven than conventional strains. Defensive implications include monitoring for outbound LLM/API usage from endpoints, controlling local model access, inspecting task patterns that resemble automated staging, and emphasizing behavior-based detections over static payload signatures.",
+    "category": "ransomware",
+    "tags": ["LLM", "polymorphism", "automation", "orchestration", "defense implications"]
+  }
+]

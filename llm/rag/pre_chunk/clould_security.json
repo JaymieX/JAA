@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_cloudq_001",
+    "title": "Quantum Risk to Cloud: Harvest-Now/Decrypt-Later and Crypto Breakage",
+    "content": "Cloud services rely on public-key cryptography for identity, key exchange, and software integrity. Large-scale quantum computers threaten these foundations by efficiently factoring integers and computing discrete logarithms, which collapses the security of RSA, finite-field Diffie–Hellman, and elliptic-curve schemes. Even before practical machines arrive, adversaries can capture encrypted traffic and stored ciphertexts now and decrypt them later once quantum capacity is available (harvest-now/decrypt-later). Risk concentrates at trust bottlenecks—TLS termination, API gateways, service meshes, artifact signing, and PKI—as a single break can propagate widely through microservice graphs. Symmetric primitives fare better but still require margin increases because quadratic-speedup search reduces effective key strength and hash collision resistance. Practical exposure depends on algorithm reachability (internet-facing endpoints, inter-service links), blast radius (privileged services, secrets), and the patch gap between publishing and fully deploying safer alternatives. Programs should inventory cryptographic use across layers, classify long-lived confidentiality obligations, and stage compensating controls for assets that cannot migrate immediately. The outcome is a prioritized plan that reduces time-at-risk while preparing for post-quantum replacements and validation at scale.",
+    "category": "cloud-security",
+    "tags": ["quantum threat", "HNDL", "RSA/ECC", "TLS", "risk"]
+  },
+  {
+    "id": "doc_cloudq_002",
+    "title": "Standardized Post-Quantum Primitives for Cloud Workloads",
+    "content": "Post-quantum cryptography centers on lattice KEMs for key establishment and lattice or hash-based signatures for code and identity, selected for strong security reductions and practical performance. Module-lattice KEMs (e.g., Kyber/ML-KEM) provide compact ciphertexts and fast decapsulation suitable for high-QPS front doors and service-to-service links. Module-lattice signatures (e.g., Dilithium/ML-DSA) offer small, fast verification for artifact signing, CI/CD attestations, and short-lived tokens; stateless hash-based signatures (e.g., SPHINCS+) serve as a conservative, longer-term option where verification speed is acceptable. Adopting these primitives requires attention to implementation risks familiar from classical schemes: constant-time operations, masking of number-theoretic transforms, and resistance to fault injection and power/EM side channels. Cloud-native fit also depends on bandwidth overhead, handshake latency, and hardware acceleration options. A pragmatic approach maps primitives to use cases—KEM for session setup and inter-service mTLS; lattice signatures for identities and software provenance; hash-based signatures for archival trust anchors—alongside rollout hooks for revocation and key rotation at fleet scale.",
+    "category": "cloud-security",
+    "tags": ["PQC", "KEM", "signatures", "performance", "implementation"]
+  },
+  {
+    "id": "doc_cloudq_003",
+    "title": "Hybrid Transition: Algorithms, Certificates, and Protocols",
+    "content": "Safely migrating to post-quantum cryptography benefits from hybrid designs that pair classical and PQ components during a transition period. At the algorithm layer, combine a classical key exchange with a PQ KEM and derive session keys from both; compromise of one primitive does not reveal traffic. At the certificate layer, issue dual-signature chains (classical + PQ) or cross-signed hierarchies to preserve compatibility with existing clients while enabling PQ validation paths. At the protocol layer, enable negotiation of PQ ciphersuites and advertise capabilities without enabling downgrades; telemetry should confirm that endpoints actually complete PQ handshakes in production, not just in pre-prod tests. Operationally, crypto-agility is critical: versioned policies, staged rollouts, automated fallbacks, and clear kill-switches for misbehaving ciphers. Measure success with concrete SLOs: percent of intra-cloud mTLS using hybrid or PQ, time to rotate keys and certificates, and error budgets that account for handshake size/latency. This staged approach reduces patch gaps, maintains service continuity, and creates evidence that controls work beyond lab conditions.",
+    "category": "cloud-security",
+    "tags": ["hybrid", "crypto-agility", "PKI", "mTLS", "migration"]
+  },
+  {
+    "id": "doc_cloudq_004",
+    "title": "Risk Modeling for the Quantum Era: STRIDE + Likelihood/Impact",
+    "content": "A consistent way to prioritize quantum-driven work is to apply STRIDE across cloud layers and rate each threat by likelihood and impact. Spoofing maps to signature forgery and identity misuse; Tampering and Information Disclosure cover decryption or integrity loss in transit and at rest; Repudiation appears when signature systems become untrustworthy; DoS includes resource-exhaustion tactics amplified by quantum optimization; Elevation of Privilege arises when broken keys unlock administrative planes. Likelihood reflects exploitability, exposure, adversary capability, and existing mitigations; impact considers data sensitivity, service criticality, and propagation potential through multi-tenant platforms and supply chains. A qualitative matrix (Low/Medium/High) converts these inputs into a ranked backlog. The method produces concrete actions: shorten certificate and token lifetimes, migrate high-blast-radius services first, harden side-channel posture in shared compute, and instrument program health with leading indicators (e.g., percentage of PQ/Hybrid handshakes, PQ-signed artifacts, and downgrade-attempt detections). Regular re-scoring aligns priorities with evolving deployments and observed failures in pre-production and incident reviews.",
+    "category": "cloud-security",
+    "tags": ["risk assessment", "STRIDE", "prioritization", "governance", "metrics"]
+  },
+  {
+    "id": "doc_cloudq_005",
+    "title": "Implementation Reality: Side-Channel and Fault Risks in PQC",
+    "content": "Post-quantum schemes resist known mathematical attacks yet still leak through implementation. Lattice KEMs and signatures rely on structured transforms (e.g., NTT) whose memory access and timing can betray secrets; masking, shuffling, and constant-time code reduce signal but require careful engineering. Fault injection can flip computations to reveal key material or forge signatures unless operations are checked and redundant computations verify results. Power and EM emissions from shared hardware may expose secrets in multi-tenant settings; isolation levels, hardened libraries, and hardware countermeasures help. Operational defenses include banning unsafe crypto builds in production images, enforcing constant-time CI gates, and using attested libraries with continuous conformance tests. Telemetry should watch for anomalies such as repeated decapsulation failures, unusual verification error profiles, or downgrade patterns. Treat PQC like any critical dependency: maintain SBOM visibility, patch quickly when leakage papers appear, and validate that protections survive compiler flags, CPU variants, and cloud accelerators.",
+    "category": "cloud-security",
+    "tags": ["side-channels", "fault attacks", "constant-time", "masking", "multi-tenant"]
+  },
+  {
+    "id": "doc_cloudq_006",
+    "title": "Cloud Provider Readiness and Customer Adoption Patterns",
+    "content": "Major providers are piloting post-quantum options across key planes: experiment flags for PQ/TLS at edges, PQ-capable KMS and HSM integrations, and artifact-signing or attestation pathways using lattice schemes. Early offerings typically arrive as opt-in previews with compatibility notes, performance caveats, and region or product limits. Customers benefit from a layered adoption plan: start with internal service-to-service mTLS and CI/CD signing, then extend to external endpoints and long-lived data encryption. Success depends on crypto-agile infrastructure (versioned PKI, policy engines, and rollout automation) and clean observability (handshake composition, certificate lineage, and error attribution). Residual risks remain around side-channel posture, hybrid-mode misconfiguration, and partial coverage that leaves downgrade islands. Clear runbooks for incident response—revoking PQ keys, rotating artifacts, and disabling known-bad ciphers—ensure reversibility while the ecosystem matures.",
+    "category": "cloud-security",
+    "tags": ["providers", "readiness", "KMS/HSM", "rollout", "observability"]
+  }
+]

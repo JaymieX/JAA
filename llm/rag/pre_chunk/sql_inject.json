@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_sqli_001",
+    "title": "SQL Injection: How Inputs Become Executable Queries",
+    "content": "SQL injection arises when untrusted input is concatenated into a query string so the database parses user-provided tokens as executable SQL. Common variants include UNION-based (merging attacker-selected columns into results), error-based (surfacing schema through database errors), stacked queries (terminating a statement and issuing a second one where allowed), and blind forms that rely on observable effects when errors are hidden. Boolean-blind toggles a condition to compare response differences, while time-based injects latency functions to create a measurable oracle. Effective prevention separates code from data with parameterized queries or prepared statements; the driver sends a precompiled statement and transmits values out-of-band, so meta-characters are not reinterpreted. Complementary controls reduce consequence and reach: least-privilege database accounts, schema whitelisting for dynamic reports, and audit trails to detect anomalous query shapes. Input validation helps reduce attack surface (e.g., rejecting unexpected encodings) but is not a substitute for parameters. Testing emphasizes controlled proof-of-concepts that demonstrate unauthorized reads or privilege escalation without damaging data, then verifies fixes with rescans and regression artifacts.",
+    "category": "sql-injection",
+    "tags": ["fundamentals", "UNION", "blind", "prepared statements", "least privilege"]
+  },
+  {
+    "id": "doc_sqli_002",
+    "title": "Blind SQLi: Oracles, Signals, and Reliable Exploitation",
+    "content": "When errors and verbose responses are suppressed, attackers pivot to blind techniques that transform query truth values into observable signals. Boolean-based methods compare responses for TRUE vs. FALSE predicates (e.g., length checks, character-by-character extraction). Time-based methods invoke functions that delay execution on TRUE to encode bits through latency. Secondary channels—status codes, content length, cache behavior, or subtle rendering differences—act as oracles when payloads are otherwise silent. Reliable exploitation automates binary search over characters and offsets, throttles requests to avoid rate limits, and randomizes casing/whitespace to bypass naive filters. Defenders improve signal-to-noise in monitoring by tracking unusual bursts of parameterized predicates, repeated conditional probes, and consistent latency spikes isolated to specific endpoints. Mitigations center on strict parameterization for every variable part of a statement (including LIMIT/OFFSET and ORDER BY via whitelists or mapping), safe error handling, and uniform responses that deny differential clues. Post-fix validation confirms that previously viable oracles no longer vary under identical probe sets.",
+    "category": "sql-injection",
+    "tags": ["blind SQLi", "boolean-based", "time-based", "oracles", "monitoring"]
+  },
+  {
+    "id": "doc_sqli_003",
+    "title": "ORMs, Query Builders, and Where SQLi Still Slips In",
+    "content": "Object-relational mappers and query builders reduce exposure by defaulting to parameterized statements, but injection still occurs when applications bypass safe APIs. Risky patterns include string interpolation for dynamic table or column names, concatenating ORDER BY or LIMIT clauses from user input, and executing raw SQL for performance-critical paths without placeholders. Some template engines or server-side renderers can enable server-side template injection that cascades into database calls if query fragments are constructed from template outputs. Safe designs confine dynamic elements to a minimal, whitelisted vocabulary and map user choices to predeclared tokens (e.g., sort key → known column enum), never to raw identifiers. Stored procedures are not inherently safe unless parameters are used inside the procedure and dynamic SQL is avoided or safely constructed. Code review checklists should flag any use of string formatting around SQL, ensure that all ORM escape hatches are justified, and verify that migrations and report builders cannot accept arbitrary expressions. Integration tests can snapshot query shapes to catch regressions when new features add unchecked flexibility.",
+    "category": "sql-injection",
+    "tags": ["ORM", "query builders", "dynamic SQL", "stored procedures", "code review"]
+  },
+  {
+    "id": "doc_sqli_004",
+    "title": "Practical Prevention: Parameters First, Everything Else Supports",
+    "content": "Robust defenses prioritize parameterized queries or prepared statements across all data-access paths. Drivers compile the statement once and transmit values separately, neutralizing meta-characters and delivering consistent semantics. Complementary measures reduce the likelihood and impact of mistakes: schema- and role-level least privilege (no application account should create users, drop schemas, or read administrative tables), input allowlists for enumerated choices, and consistent error handling that avoids revealing dialect-specific details. Web application firewalls may block commodity payloads and provide short-term protection but must not substitute for code fixes. Operational safeguards include immutable infrastructure for data-access services, secrets rotation after remediation, and telemetry that captures query fingerprints and bind-parameter counts to detect shape drift. Verification couples automated scans with manual proof-of-concept reproduction and a regression suite that exercises previously vulnerable endpoints. Organizations that institutionalize this cycle—hypothesis, exploitation, fix, verification—see measurable reductions in exploitability and faster mean time to remediate recurring classes.",
+    "category": "sql-injection",
+    "tags": ["prevention", "prepared statements", "WAF", "error handling", "telemetry"]
+  },
+  {
+    "id": "doc_sqli_005",
+    "title": "Testing Workflow: Recon, Hypotheses, and Evidence-Backed PoCs",
+    "content": "High-signal testing starts by mapping the attack surface: enumerate endpoints, parameters, authentication flows, and where user input influences query construction. Build a hypothesis list that links endpoints to likely flaw classes—ID-based lookups for tautologies, search features for UNION tests, login paths for authentication bypass, export/report features for stacked queries. Automation helps triage (crawler-assisted discovery, payload dictionaries), but manual tuning is essential to confirm business-logic and context-dependent issues. A good proof-of-concept is minimal and safe: a request sequence that demonstrates unauthorized data access or control, paired with a clear oracle such as a controlled row read. Reporting should include exact requests, parameter roles, affected tables or columns, and proposed remediations in the target stack (e.g., PDO prepared statements for PHP, parameterized API calls for the chosen driver). Post-fix rescans and targeted re-tests verify closure and guard against regressions in adjacent endpoints introduced during refactors.",
+    "category": "sql-injection",
+    "tags": ["testing", "reconnaissance", "sqlmap", "proof-of-concept", "reporting"]
+  },
+  {
+    "id": "doc_sqli_006",
+    "title": "Application Examples: Login, Search, and Reporting Flows",
+    "content": "Typical injection-prone flows share patterns: logins that interpolate credentials directly into WHERE clauses; search endpoints that splice user input into SELECT, ORDER BY, or LIKE without placeholders; and reporting/export features that compose complex statements from user-chosen fields and filters. Safe designs bind credentials to parameters and compare against hashed passwords, map sort keys to a fixed dictionary of columns, and translate user filters into a structured internal representation that the data layer converts to bound conditions. Analytics endpoints should avoid returning raw database errors, and pagination must not accept free-form expressions. Testing focuses on these flows with payload families appropriate to each: boolean and time-based probes for logins, UNION probes for search results with predictable column counts, and stacked-query checks only in environments where it is safe and supported. Hardening includes least-privilege roles per feature, separate service accounts for read vs. write paths, and query-shape monitoring to flag unexpected constructs even when functional tests pass.",
+    "category": "sql-injection",
+    "tags": ["login", "search", "reporting", "pagination", "hardening"]
+  }
+]

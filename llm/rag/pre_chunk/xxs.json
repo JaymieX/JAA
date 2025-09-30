@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_xss_001",
+    "title": "XSS: Types, Payload Flow, and Impact",
+    "content": "Cross-site scripting (XSS) injects attacker-controlled script into a page so the victim’s browser executes it within the site’s origin. Three primary forms are observed. Stored XSS persists server-side (e.g., database, CMS fields) and impacts every viewer of the tainted page. Reflected XSS returns attacker input immediately in the response (often via query parameters) and typically targets a single user through crafted links. DOM-based XSS arises when client-side code reads attacker-controlled data (fragment, storage, or DOM nodes) and writes it into an execution or HTML context without proper encoding. Practical harm includes session theft, privileged action forgery, keylogging, content tampering, and worm-like self-spread inside collaborative surfaces. Exploitability depends on context: HTML, attribute, URL, CSS, and JavaScript sinks require distinct encodings; templating and modern front-end frameworks can shift where sanitization must occur. Reliable prevention pairs contextual output encoding with strict input handling, safe-by-default templating, CSP to reduce script execution surface, and framework features that avoid dynamic code paths. Testing should verify dangerous sinks, paths from user input to DOM writes, and the behavior of sanitizers under obfuscations such as mixed casing, entity encoding, and injected control characters.",
+    "category": "xss",
+    "tags": ["xss", "stored", "reflected", "dom-based", "contexts"]
+  },
+  {
+    "id": "doc_xss_002",
+    "title": "Detector Design and Common Weaknesses",
+    "content": "XSS detectors range from static analyzers and dynamic crawlers to ML/DL classifiers that label payloads or requests. Effective pipelines define tokenization rules, normalize encodings, and constrain vocabulary so semantically equivalent payloads map consistently. A recurring weakness is brittle preprocessing: rare or novel tokens can be replaced by generic placeholders (e.g., out-of-vocabulary tokens), inadvertently destroying attack semantics before classification and inflating apparent accuracy or attack escape rates. Another pitfall is limited coverage of obfuscation strategies such as entity mixing, base64 chunks, newline/tab insertions, and deliberate misspellings around sensitive keywords. Robust systems validate that inputs entering the model still represent executable attacks in the target runtime, measure uniqueness/entropy to catch anomalous token streams, and prefer behaviorally grounded features (e.g., sink reachability) over purely lexical signals. Reported evaluations should disclose tokenization, vocabulary coverage, and controls against adversarial preprocessing shortcuts so metrics reflect real detection rather than artifacts of the pipeline.",
+    "category": "xss",
+    "tags": ["detection", "preprocessing", "ml", "oov", "obfuscation"]
+  },
+  {
+    "id": "doc_xss_003",
+    "title": "Adversarial Evasion with Reinforcement Learning",
+    "content": "Adversarial agents can treat XSS evasion as a sequential decision problem: starting from a base payload, choose mutation actions that preserve exploitability while evading a detector. Action sets include entity and Unicode encodings, mixed casing, keyword splitting/concatenation, whitespace or control-character insertion, comment placement, base64 wrapping, and protocol tweaks. The agent observes detector feedback and receives rewards for successful bypasses, exploring combinations that frustrate tokenizers and models. Studies show near-perfect escape rates against several deep models when mutation policies exploit gaps in preprocessing and vocabulary handling. High-performing agents also pace changes to avoid breaking execution semantics, throttle action counts, and favor transformations that survive common normalizers. Evasion effectiveness is sensitive to detector design; behavior-anchored features and semantic validation of candidate payloads reduce reliance on token shape alone, increasing the cost of purely lexical mutations.",
+    "category": "xss",
+    "tags": ["adversarial", "reinforcement learning", "evasion", "tokenization", "mutations"]
+  },
+  {
+    "id": "doc_xss_004",
+    "title": "Oracle-Guided Validation and Metrics that Matter",
+    "content": "An execution ‘oracle’ evaluates whether a mutated payload still behaves as an attack by rendering it into a controlled template and comparing the resulting DOM with a known baseline. This closes a key gap: many mutations that fool classifiers stop executing as XSS after normalization or model preprocessing. Useful metrics include Ruin Rate (fraction of payloads that cease to be malicious under the oracle) and OOV Rate (fraction of tokens the model maps to placeholders), computed before and after preprocessing. High ruin with high OOV indicates the classifier is being bypassed through pipeline artifacts rather than genuine, semantics-preserving obfuscations. Incorporating the oracle into training changes the reward: evasions that break attack semantics are penalized, encouraging agents to search for valid, executable bypasses. The result is a clearer view of true defensive strength and fewer false impressions from lexical shortcuts.",
+    "category": "xss",
+    "tags": ["oracle", "validation", "ruin rate", "oov rate", "evaluation"]
+  },
+  {
+    "id": "doc_xss_005",
+    "title": "Defensive Hardening Against Learned Obfuscations",
+    "content": "Defenses target both execution and classification layers. At the runtime boundary, contextual output encoding, strict CSP (nonces/hashes; no unsafe-inline), and sanitizer libraries with well-tested, context-aware encoders reduce reachable sinks. In detectors, stabilize preprocessing: expand or subword the vocabulary to curb placeholder explosions, normalize mixed encodings, and reject inputs with excessive entropy or anomalous token composition. Prefer features tied to behavior—e.g., whether tainted input can reach script execution in the page model—over raw token sequences. During evaluation, use oracle checks and report escape, detection, ruin, and OOV rates to separate ‘true’ bypasses from preprocessing exploits. For ML/DL models, adversarial training with semantics-preserving mutations, consensus across diverse tokenizers, and freshness checks on obfuscation strategies help close gaps. Finally, align mitigations with monitoring: surface signatures for common mutation families and alert on suspicious concentrations of context-breaking characters or encoded keywords.",
+    "category": "xss",
+    "tags": ["defense", "csp", "sanitization", "robust-ml", "monitoring"]
+  },
+  {
+    "id": "doc_xss_006",
+    "title": "Reporting and Reproducibility for XSS Research",
+    "content": "Clear reporting reduces ambiguity and enables apples-to-apples comparison. Strong studies disclose datasets and splits, tokenization rules, vocabulary size/coverage, and model architectures; they share code for detectors, mutation agents, and the oracle. Metrics include standard classifier quality (precision/recall/F1) and adversarial outcomes (escape/detection rates) alongside ruin and OOV rates computed pre- and post-preprocessing. Replication should demonstrate that bypasses remain malicious under the oracle, not just under the model’s tokenizer. When commercial detectors are evaluated, authors should describe guardrails to prevent mislabeling due to vocabulary collapse and provide evidence that payloads execute post-mutation. These practices help distinguish genuine weaknesses in detection from artifacts of data preparation, encourage robust countermeasures, and accelerate practical progress in mitigating XSS.",
+    "category": "xss",
+    "tags": ["reproducibility", "metrics", "datasets", "evaluation", "benchmarks"]
+  }
+]

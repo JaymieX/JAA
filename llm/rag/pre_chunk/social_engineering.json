@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_se_001",
+    "title": "Social Engineering: Tactics, Channels, and Lifecycle",
+    "content": "Social engineering exploits predictable human behavior to bypass technical controls. Common tactics include pretexting (inventing a role or scenario), authority appeals, urgency and scarcity cues, reciprocity, and social proof. Attackers select channels that fit the pretext: email and chat for phishing or business-process manipulation, SMS for short prompts and link delivery, voice calls for rapport and real-time pressure, and collaboration tools for link or file staging. A typical lifecycle begins with reconnaissance (learning roles, processes, and lexicon), proceeds to initial contact and trust building, then requests a small, low-friction action that escalates to the real objective (credential capture, payment change, data access, or session handoff). Effective defenses acknowledge that perfect prevention is unrealistic; programs emphasize layered controls such as role-based process gates, out-of-band verifications for sensitive changes, minimal standing privileges, and monitoring for anomalous communication patterns. User education is most effective when it is contextual, scenario-based, and coupled with clear, rehearsed procedures that make “safe behavior” the path of least resistance. Measurable outcomes include reduced click-through on simulations, increased report rates, and shorter time-to-contain incidents initiated through human channels.",
+    "category": "social-engineering",
+    "tags": ["pretexting", "phishing", "urgency", "authority", "defense-in-depth"]
+  },
+  {
+    "id": "doc_se_002",
+    "title": "Phishing and Pretext Design: Why Messages Work",
+    "content": "Successful phishing aligns three elements: audience, trigger, and action. Messages reflect the target’s workflow and vocabulary, reference plausible events, and provide a single, simple next step (click, reply, upload, or approve). Visual and linguistic cues matter: consistent branding, familiar sign-offs, and predictable timing raise credibility; time-boxed requests, partial information disclosure, and benign attachments reduce scrutiny. Links are increasingly disguised behind URL shorteners, collaboration previews, or SSO lookalikes; attachments use formats that prompt credential entry or macro execution. Defenses focus on breaking the chain at multiple points: authentication protections (phishing-resistant MFA, device-bound tokens), mail pipeline controls (link rewriting, sandboxing, impersonation detection), and process rules that require channel-switch verification for sensitive changes. Training should teach recognition of intent rather than rely on static examples—e.g., any message that moves you to act quickly on money, secrets, or credentials deserves secondary verification. Reporting mechanisms must be low-friction (one-click) and produce useful signals for triage rather than punitive outcomes for false alarms.",
+    "category": "social-engineering",
+    "tags": ["phishing", "pretext", "brand impersonation", "MFA", "reporting"]
+  },
+  {
+    "id": "doc_se_003",
+    "title": "Voice, SMS, and Deepfakes: Real-Time Pressure Channels",
+    "content": "Vishing and smishing compress decision time and exploit live pressure. Calls often begin with benign verification questions, then escalate to urgent requests such as OTP relays, password resets, or payment approvals. Modern voice cloning and high-quality text-to-speech can synthesize familiar voices from short samples, while caller ID spoofing and callback loops increase plausibility. SMS directs users to shortened links or app installs and leverages conversational tone to bypass skepticism. Countermeasures pair authentication design with workflow barriers: phishing-resistant MFA that cannot be verbally relayed, limited lifetimes for approvals, device binding, and transaction confirmations that require users to read and approve specific details in a trusted app. Staff-facing runbooks should include scripts for refusing real-time requests and routes to verify identities through known-good channels. Telephony hygiene (denylisting, analytics on call patterns, and monitoring for repeated OTP failures) provides early signals without relying solely on user vigilance.",
+    "category": "social-engineering",
+    "tags": ["vishing", "smishing", "deepfake voice", "caller ID spoofing", "workflow controls"]
+  },
+  {
+    "id": "doc_se_004",
+    "title": "Augmented Reality and Multimodal LLMs as Attack Amplifiers",
+    "content": "Emerging social engineering campaigns can blend head-worn sensors, real-time perception, and multimodal language models to tailor dialogue and pacing to a target’s context. By interpreting visual and auditory cues—facial affect, environment, conversational tone—an attacker’s assistant can suggest context-fitting prompts, steer small talk toward shared interests, and adapt pressure based on live reactions. Role-based retrieval augments this with public context to keep interactions coherent while maintaining a believable persona. In controlled studies, such pipelines have shown higher success at establishing rapport and eliciting risky actions than unaided scripts, largely by making interactions feel natural and timely. Defensive implications include constraining sensitive actions to channels with strong, device-bound confirmations, monitoring for unusual cross-channel sequences (chat→call→link) that escalate quickly, and delivering just-in-time warnings inside the same user interfaces where decisions are made. Awareness content should highlight that convincing delivery and situational fluency are not proof of legitimacy.",
+    "category": "social-engineering",
+    "tags": ["augmented reality", "multimodal LLM", "context cues", "rapport", "countermeasures"]
+  },
+  {
+    "id": "doc_se_005",
+    "title": "Detection, Reporting, and Assisted Triage",
+    "content": "Detection is strongest when human reports, technical signals, and process violations converge. Useful indicators include first-contact messages that request sensitive actions, unusual meeting invites with external collaboration links, sudden changes to payment beneficiaries, or off-hours approvals outside normal patterns. Mail and chat telemetry (new sender similarity to known contacts, atypical link domains, language anomalies) can feed scoring systems that route suspected items into assisted triage. Design matters: one-click reporting, clear feedback to reporters, and rapid analyst acknowledgments increase participation. For high-risk flows (finance, access grants), require dual controls and create immutable audit trails. Automated responders can insert friction—hold messages pending review, strip risky links, or move conversations into verified channels—while avoiding blanket blocks that degrade trust. Post-incident reviews should add concrete detection rules and update playbooks with precise, reproducible steps for the next analyst on call.",
+    "category": "social-engineering",
+    "tags": ["detection", "reporting", "triage", "anomaly signals", "dual control"]
+  },
+  {
+    "id": "doc_se_006",
+    "title": "Program Design: Simulations, Metrics, and Behavior Change",
+    "content": "A sustainable program measures behavior and system outcomes, not just training completion. Simulations should reflect real workflows (tools, tone, timing) and vary difficulty, objectives, and channels. Track metrics that connect to risk: report rate, median time-to-report, click-through prior to report, rate of safe escalation to verified channels, and time-to-contain after a report. Avoid ‘gotcha’ tests that erode trust; instead, pair simulations with immediate coaching and transparent summaries. Calibrate technical controls to reduce decision load—e.g., pre-filter obvious commodity attacks so users focus on ambiguous cases. For process changes, make the safe path fastest: embed verification buttons in finance tools, present clear red flags in SSO prompts, and default to read-only access paths unless escalation is justified. Regular retrospectives should compare incident patterns against training coverage, ensuring that content and controls evolve with attacker tactics.",
+    "category": "social-engineering",
+    "tags": ["program design", "simulations", "metrics", "behavior change", "process design"]
+  }
+]

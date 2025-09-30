@@ -2,7 +2,7 @@ import json
 import chromadb
 from pathlib import Path
 from typing import List, Dict, Any
-from llama_index.core import VectorStoreIndex, Document, StorageContext
+from llama_index.core import VectorStoreIndex, Document, StorageContext, SimpleDirectoryReader
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.fastembed import FastEmbedEmbedding
 from llama_index.core import Settings
@@ -64,54 +64,46 @@ class RAGBuilder:
             vector_store = self.vector_store
         )
 
-    def load_json_data(self, json_file_path: str) -> int:
+    def load_json_data(self, json_dir_path: str) -> int:
         """
-        Load JSON snippets and convert to LlamaIndex Documents with chunking
+        Load all json files from a directory and convert to LlamaIndex Documents with chunking
 
         Args:
-            json_file_path: Path to JSON file containing snippets
+            json_dir_path: Path to directory containing json files
 
         Returns:
             Number of original documents loaded
         """
         try:
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # Read all json files from the directory
+            json_path = Path(json_dir_path)
+            reader = SimpleDirectoryReader(
+                input_dir=str(json_path),
+                required_exts=[".json"],
+                recursive=False
+            )
+            loaded_docs = reader.load_data()
 
-            # Handle different JSON structures
-            if isinstance(data, list):
-                json_items = data
-            elif isinstance(data, dict) and 'data' in data:
-                json_items = data['data']
-            else:
-                json_items = [data]
+            if not loaded_docs:
+                print(f"No json files found in {json_dir_path}")
+                return 0
 
             self.documents = []
-            for i, item in enumerate(json_items):
+            for i, doc in enumerate(loaded_docs):
                 # Extract text content
-                if isinstance(item, dict):
-                    # Try common text fields
-                    text_content = (
-                        item.get('content') or
-                        item.get('text') or
-                        item.get('description') or
-                        str(item)
-                    )
+                text_content = doc.text
 
-                    # Create metadata
-                    metadata = {
-                        'id':     item.get('id', f"doc_{i}"),
-                        'title':  item.get('title', f"Document {i}"),
-                        'source': json_file_path
-                    }
+                # Create metadata from existing metadata or defaults
+                metadata = {
+                    'id':     doc.metadata.get('id', f"doc_{i}"),
+                    'title':  doc.metadata.get('title', doc.metadata.get('file_name', f"Document {i}")),
+                    'source': doc.metadata.get('file_path', json_dir_path)
+                }
 
-                    # Add any additional metadata fields
-                    for key, value in item.items():
-                        if key not in ['content', 'text', 'description'] and isinstance(value, (str, int, float)):
-                            metadata[key] = value
-                else:
-                    text_content = str(item)
-                    metadata = {'id': f"doc_{i}", 'title': f"Document {i}", 'source': json_file_path}
+                # Add any additional metadata fields
+                for key, value in doc.metadata.items():
+                    if key not in ['id', 'title', 'source'] and isinstance(value, (str, int, float)):
+                        metadata[key] = value
 
                 # Split document into chunks
                 chunks = self.text_splitter.split_text(text_content)
@@ -132,7 +124,7 @@ class RAGBuilder:
 
             # Count original documents (not chunks)
             original_doc_count = len([d for d in self.documents if d.metadata.get('chunk_idx', 0) == 0])
-            print(f"Loaded {original_doc_count} documents ({len(self.documents)} chunks) from {json_file_path}")
+            print(f"Loaded {original_doc_count} documents ({len(self.documents)} chunks) from {json_dir_path}")
             return original_doc_count
 
         except Exception as e:

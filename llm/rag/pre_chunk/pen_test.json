@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_pt_001",
+    "title": "Penetration Testing Lifecycle and Rules of Engagement",
+    "content": "A structured penetration test moves through scoped phases designed to surface exploitable weaknesses while minimizing disruption. Scoping aligns the target list, constraints, allowed techniques, and success criteria with stakeholders; it also defines data handling and safety guardrails. Reconnaissance inventories assets, technologies, and entry points (domains, APIs, auth flows), followed by enumeration to map endpoints, versions, roles, and trust boundaries. Exploitation validates hypotheses with proof-of-concepts that demonstrate real impact (e.g., unauthorized data access, code execution) rather than theoretical matches. Post-exploitation focuses on lateral movement feasibility and blast-radius assessment while avoiding unnecessary harm. Throughout, testers record exact steps, inputs, and artifacts for reproducibility. Reporting converts findings into prioritized remediation with clear risk statements, affected assets, and verification steps. Effective engagements emphasize evidence-backed results, least-privilege techniques, and reversible changes; they also rehearse containment advice so teams can mitigate quickly. Success is measured not just by vulnerabilities found but by clarity, reproducibility, and the durability of fixes informed by the test.",
+    "category": "penetration-testing",
+    "tags": ["methodology", "scoping", "enumeration", "exploitation", "reporting"]
+  },
+  {
+    "id": "doc_pt_002",
+    "title": "Web & API Recon: Building a High-Signal Attack Surface Map",
+    "content": "High-quality recon reduces noise during exploitation. For web and API targets, start by enumerating hostnames, routes, and versions, then fingerprint frameworks, auth schemes, and deployment topology (edges, proxies, serverless). Derive a data-flow sketch: which endpoints gate sensitive actions, which identities and roles exist, and where trust boundaries shift (user→service, service→data). Prefer machine-readable sources—OpenAPI/GraphQL schemas, sitemap indexes, robots.txt, and client bundles—to enumerate hidden parameters and flows. Catalog inputs by type (path, query, body, headers) and note validation and serialization paths; log statefulness (sessions, tokens, cookies) and rate/anti-automation controls. Map storage and secrets exposure patterns in client code (embedded keys, env endpoints) and detect misconfigurations (over-permissive CORS, default admin panels). The output is a prioritized hypothesis list linking endpoints to likely classes (IDOR/BOLA on object routes, SSTI on templated render paths, command/SQL injection on unsafe exec/ORM layers, SSRF on fetchers and integrations). This preparation yields targeted tests, clearer oracles, and faster convergence on exploitable issues.",
+    "category": "penetration-testing",
+    "tags": ["reconnaissance", "api", "openapi", "surface-mapping", "misconfiguration"]
+  },
+  {
+    "id": "doc_pt_003",
+    "title": "Proof-of-Concept Validation and Reducing False Positives",
+    "content": "Findings carry value when exploitability is demonstrated. A proof-of-concept should be minimal, repeatable, and safe: a request sequence or script that reproduces the condition and proves impact with an oracle (e.g., controlled file read, controlled server response, captured flag in a test env). Good oracles avoid ambiguous signals like generic errors and favor side effects tied to the vulnerability. Validation distinguishes code patterns from real risks, especially for business-logic and context-dependent flaws where static signatures over- or under-estimate exposure. Effective pipelines separate hypothesis generation from concrete execution in isolated environments and require pass/fail evidence before reporting. This approach also enables early tuning of detections, reduces remediation churn, and provides precise regression tests for fixes. When immediate patching is infeasible, document compensating controls (segmentation, policy changes, token hardening) and time-boxed exceptions, then track them to closure with re-tests.",
+    "category": "penetration-testing",
+    "tags": ["poc", "validation", "oracles", "false-positives", "regression-tests"]
+  },
+  {
+    "id": "doc_pt_004",
+    "title": "Automation and Multi-Agent Orchestration in Pentesting",
+    "content": "Automation accelerates coverage when tied to tool-grounded execution and strict validation. Orchestrated agents can plan probes, run recon and fuzzing tools, craft payloads, and assemble end-to-end PoCs inside isolated containers. Evaluations on modern web challenges report strong performance on SSRF and misconfiguration scenarios, high success on SQL/SSTI and command injection, and difficulty on blind SQL injection and some XSS variants. Cost and efficiency analyses show negative correlation between success and resource use: quick wins tend to require fewer tool calls, tokens, and wall-clock time. Practical early-stopping heuristics include capping attempts around dozens of tool calls or low dollar budgets per target when progress stalls. Architectures that separate coordination from sandboxed execution and final validation reduce false positives by requiring concrete, reproducible exploits before claiming success.",
+    "category": "penetration-testing",
+    "tags": ["automation", "agents", "tooling", "cost-analysis", "sandboxing"]
+  },
+  {
+    "id": "doc_pt_005",
+    "title": "Prioritizing Web Vulnerabilities for Exploitation",
+    "content": "Prioritization aligns effort with risk and likelihood. Access-control failures (IDOR/BOLA/BFLA) often yield broad data exposure with low preconditions and are prime early targets. Injection classes remain high-value: SQLi and command injection can provide database control or code execution; SSTI can escalate quickly if template contexts expose filesystem or runtime. SSRF commonly enables internal reach or metadata harvesting in cloud contexts, while configuration mistakes (default creds, open admin panels, permissive CORS) are fast wins. Conversely, blind channels that rely on timing or indirect oracles (blind SQLi) may demand more iterations and careful measurement. Rank hypotheses by reachable preconditions, clarity of oracle, and blast radius; prefer exploits that demonstrate unauthorized access to sensitive objects or privileged actions with minimal setup. Record negative tests to avoid re-trying exhausted paths and to guide remediation advice with evidence of what worked and what was gated.",
+    "category": "penetration-testing",
+    "tags": ["prioritization", "owasp", "access-control", "injection", "ssrf"]
+  },
+  {
+    "id": "doc_pt_006",
+    "title": "Reporting, Remediation, and Readiness Drills",
+    "content": "Clear reporting turns exploits into durable fixes. Each finding should specify the affected asset and endpoint, exact reproduction steps, observed impact, likelihood, and recommended remediation tied to root cause (e.g., enforce object-level auth checks, parameterize queries, sanitize template contexts, restrict egress, harden CORS). Include compensating controls and interim blocks when patching needs coordination. Provide regression artifacts: minimized payloads, unit/integration tests, or scanner profiles to prevent re-introduction. Post-test, run a readiness drill that verifies monitoring and alerts for the exploited path, ensures backups or rollbacks aren’t vulnerable to the same vector, and updates playbooks with containment steps. Over time, track fix latency, repeat findings by class, and coverage against critical data flows to measure improvement and guide future testing scope.",
+    "category": "penetration-testing",
+    "tags": ["reporting", "remediation", "regression", "playbooks", "metrics"]
+  }
+]

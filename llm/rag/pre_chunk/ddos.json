@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_ddos_001",
+    "title": "DDoS Taxonomy and Multi-Vector Campaigns",
+    "content": "Distributed denial-of-service activity spans three broad layers that are often combined: volumetric floods that saturate links or devices with sheer bandwidth; protocol-layer abuses that exhaust state in network stacks and intermediaries (e.g., SYN floods, TCP state exhaustion, fragmented packet storms); and application-layer attacks that target expensive endpoints like login or search, frequently mimicking legitimate clients. Reflection/amplification vectors exploit UDP services with asymmetric responses (DNS, NTP, Memcached, CLDAP) to multiply traffic using spoofed sources. Modern campaigns chain vectors—brief application spikes to trigger autoscaling, followed by volumetric bursts that overwhelm edge capacity, then protocol maneuvers that stall stateful devices. Attackers optimize for cost and reliability: prebuilt botnets supply bandwidth; booter services orchestrate mixes; and scripts iterate payload sizes, concurrency, and jitter to bypass static filters. Defenders benefit from clear classification because mitigations differ: bandwidth absorption and anycast scrubbing for volumetric floods; stateless protections and backlog hardening for protocol attacks; and request scoring, caching, and per-identity throttles for application traffic. Effective runbooks treat attacks as evolving sequences and prepare switchovers between controls without introducing new bottlenecks.",
+    "category": "ddos",
+    "tags": ["taxonomy", "amplification", "application-layer", "protocol", "volumetric"]
+  },
+  {
+    "id": "doc_ddos_002",
+    "title": "Amplification and Reflection Mechanics",
+    "content": "Amplification relies on services that reply with much larger responses than requests, combined with forged source IPs so replies target the victim. Common examples include DNS ANY/large TXT responses, NTP monlist/ntpdc variants, Memcached UDP, and CLDAP. The amplification factor is shaped by payload selection, server configuration, and response fragmentation; attackers tune query types and EDNS buffer sizes to maximize bytes per packet. Reflection distributes load across many unwitting servers, complicating filtering because traffic appears to originate from legitimate hosts. Practical dampeners include widespread source-address validation (BCP-38), disabling or rate-limiting unauthenticated UDP endpoints, response size capping, and requiring authentication or cookies where available (e.g., DNS cookies). On the victim side, detection favors surges of unsolicited UDP from diverse IPs to a small set of ports with high packet-per-second rates and relatively uniform payloads. Network-level mitigations prioritize stateless filters keyed to protocol quirks, upstream scrubbing with anycast sinks, and rapid null-routing of specific destination tuples when services can fail over safely to alternate addresses.",
+    "category": "ddos",
+    "tags": ["amplification", "reflection", "UDP", "spoofing", "BCP38"]
+  },
+  {
+    "id": "doc_ddos_003",
+    "title": "Early Signals and Telemetry for DDoS Detection",
+    "content": "High-signal indicators emerge in flows, endpoints, and user-facing metrics. Flow records reveal bursts in packets-per-second, uniform destination tuples, and fan-in from many first-seen sources; entropy of source IPs and ports typically rises while destination entropy falls. Transport symptoms include SYN backlog growth, retransmit spikes, increased RST/ICMP unreachable ratios, and elevated connection setup failures. At the application edge, sudden shifts in request mix, cache miss rates, or error codes (e.g., 429/503 oscillations) mark stress points; median vs. tail latency divergence hints at queue saturation before outright failure. Useful minimal features for classifiers include packet/byte counts, inter-arrival proxies, connection states/history, and duration distributions per tuple. Canary endpoints and tarpits provide low-noise tripwires when probed. Telemetry design should prefer stateless summaries at high cardinality and preserve exemplars for rapid packet captures. Correlating process lineage on proxies with egress patterns and enforcing authenticated egress from sensitive hosts reduces false positives from internal scans while preserving visibility for automated mitigations.",
+    "category": "ddos",
+    "tags": ["telemetry", "detection", "flows", "signals", "canaries"]
+  },
+  {
+    "id": "doc_ddos_004",
+    "title": "Mitigation: Scrubbing, Anycast, and Control Trade-offs",
+    "content": "Mitigation blends upstream absorption with precise filtering. Anycasted edges and scrubbing centers distribute volumetric load and apply stateless filters (packet size, flags, malformed combinations, known reflection payloads). For protocol exhaustion, backlog tuning, SYN cookies, selective proxying, and per-source rate ceilings reduce state pressure. Application-layer defenses include surge-aware caching, request scoring with proof-of-work or token buckets, and per-identity/concurrency limits tied to session or device claims. Strict egress policies and authenticated proxies help distinguish legitimate traffic during fail-open scenarios. Trade-offs are unavoidable: aggressive filtering risks collateral damage; autoscaling increases cost and can become a target; CAPTCHA or challenges can degrade user experience. Runbooks should define escalation steps, success metrics (requests served, error budgets, tail latency), and abort criteria for tactics that cause excessive collateral impact. Preprovisioned alternate DNS and IP endpoints enable traffic shifting when a target is saturated, and post-incident tuning focuses on removing brittle rules and codifying successful filters into reproducible policies.",
+    "category": "ddos",
+    "tags": ["mitigation", "scrubbing", "anycast", "rate limiting", "WAF"]
+  },
+  {
+    "id": "doc_ddos_005",
+    "title": "Resilience Engineering and Readiness for DDoS",
+    "content": "Resilience treats DDoS as a reliability problem with clear objectives. Define service SLOs and error budgets, then map critical paths and quotas per dependency (DNS, TLS terminators, caches, databases). Establish multiple traffic entry points with health-based routing, test failover between providers, and pre-warm capacity where cold starts are costly. Protect control planes—configuration APIs, CI/CD, and secret stores—so mitigations remain executable under load. Game days simulate vector mixes and force decisions under constrained time, measuring time-to-detect, time-to-mitigate, and collateral impact. Backpressure mechanisms (queue limits, circuit breakers) prevent resource collapse, while load-shedding prioritizes essential functions. Instrumentation should survive partial outages, with lightweight counters and status endpoints that feed external monitors. After events, retrospectives compare demand curves to capacity envelopes, capture working filters, and convert ad-hoc playbook edits into versioned infrastructure. The goal is not invulnerability but predictable degradation and rapid recovery without introducing new single points of failure.",
+    "category": "ddos",
+    "tags": ["resilience", "SLOs", "load shedding", "failover", "readiness"]
+  },
+  {
+    "id": "doc_ddos_006",
+    "title": "Forecasting DDoS Trends with Time-Series Models",
+    "content": "Forecasting complements detection by estimating near-term attack trends from historical aggregates such as daily counts, average duration, and peak throughput per subclass. Sliding-window models like LSTM ingest sequences of these features to predict the next step, aiming to capture temporal dynamics and seasonality that precede surges. Practical pipelines split data into train/validation/test by time, normalize features, and evaluate with MSE/MAE while also inspecting predicted vs. actual curves—trend alignment may be useful even when absolute magnitudes under- or over-shoot. Accuracy depends on window size, neuron count, and feature selection; shallow architectures can model trends with modest compute, but spike magnitudes are challenging. Forecasts are most valuable when wired to actions: pre-warming scrubbing capacity, raising alert sensitivity, or staging rate-limit policies before anticipated peaks. Combining LSTM with change-point detection or exogenous signals (botnet chatter, new amplification advisories) can improve responsiveness without depending solely on reactive alerts.",
+    "category": "ddos",
+    "tags": ["forecasting", "time series", "LSTM", "trends", "proactive defense"]
+  }
+]

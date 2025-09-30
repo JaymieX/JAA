@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_jb_001",
+    "title": "Jailbreak Threat Models and Objectives",
+    "content": "Prompt jailbreaking targets the safety alignment of large language models by eliciting disallowed outputs through crafted inputs. Adversaries vary by access: white-box actors assume details about parameters or gradients; black-box actors rely on queries, transfer from surrogate models, or decision-only feedback. Goals split into targeted (produce a specific harmful instruction) and untargeted (produce any unsafe response). Attack surfaces include instruction prompts, system/tool calls, and multi-turn context where earlier messages reshape intent. Modern attackers optimize stealth over raw success, favoring prompts that look task-like, defer harmful intent, or reframe objectives via role-play and indirection. Practical risk depends on moderator coverage, conversation memory, and guardrail composition (policy classifiers, tool gating, refusals). Defenders benefit from explicit threat models—what channels are exposed, which classes of behavior are in scope, and what constitutes success/failure—so that evaluation, logging, and red-teaming focus on realistic access and objectives rather than narrow, one-shot templates.",
+    "category": "llm-jailbreak",
+    "tags": ["threat model", "black-box", "white-box", "objectives", "risk"]
+  },
+  {
+    "id": "doc_jb_002",
+    "title": "Techniques and Trends: From Templates to RL-Formalization",
+    "content": "Early jailbreaks used stock templates, concatenated suffixes, or genetic search over phrases. Newer methods prioritize stealth and adaptability: prompts are formalized or decomposed into symbolic, logical, or mathematical representations, then iteratively refined with reinforcement learning to preserve malicious intent while evading filters. Some pipelines cache successful transformations in retrieval structures so future attempts can reuse effective patterns in context. Reported evaluations show higher attack success when prompts avoid obvious keywords, distribute intent across steps, and exploit model biases (e.g., compliance to structured tasks). These approaches reduce detectability by content filters that key off surface tokens or perplexity spikes and increase transfer across models by focusing on structure rather than specific wording. The trend line is away from static strings and toward procedure-generating agents that search a space of semantically equivalent prompts under safety constraints.",
+    "category": "llm-jailbreak",
+    "tags": ["reinforcement learning", "formalization", "transferability", "retrieval", "templates"]
+  },
+  {
+    "id": "doc_jb_003",
+    "title": "Detection Pitfalls and Robust Mitigations",
+    "content": "Single-layer detectors are brittle: keyword lists miss obfuscated intent; pure perplexity or token-rarity heuristics can be gamed by fluent paraphrases; ‘gradient-masking’ style defenses (non-determinism, odd preprocessing) often fail under adaptive attacks. Stronger designs layer safeguards: intent classifiers trained on diverse adversarial data; conversation-level policies that resist context laundering; tool and file-access gates with provenance checks; and refusal flows that summarize why a request is unsafe and steer to allowed alternatives. Telemetry should capture prompt/response features, refusal reasons, and model/tool call graphs for retrospective tuning. Safety systems benefit from crypto-style assumptions: publish evaluation suites, test against adaptive adversaries, and expect distribution shift. Where possible, block at capability boundaries (e.g., deny code execution or unsafe tool chains) so that even if text guidance slips through, harmful actions remain infeasible.",
+    "category": "llm-jailbreak",
+    "tags": ["detection", "guardrails", "telemetry", "context", "adaptive defense"]
+  },
+  {
+    "id": "doc_jb_004",
+    "title": "Evaluation: Metrics, Judges, and Adaptive Suites",
+    "content": "Attack quality is not captured by refusal-string matching alone. Useful metrics include attack success rate under an independent judge, diversity of successful prompts, and cost to attack (queries, tokens, wall-clock). Benchmarks should span categories (e.g., contraband, cyber-misuse, harassment) and include both one-shot and multi-turn settings. LLM-as-judge setups reduce brittle keyword checks but must be calibrated and audited to avoid bias; cross-judging with multiple models and human spot checks improves reliability. Adaptive test suites matter: once a defense is updated with yesterday’s templates, evaluations should regenerate attacks with search or RL to measure residual risk. Reports should disclose threat model, budgets, and failure analyses, and include regression harnesses so future model or policy updates are tested against prior bypasses.",
+    "category": "llm-jailbreak",
+    "tags": ["metrics", "ASR", "LLM-as-judge", "benchmarks", "cost-to-attack"]
+  },
+  {
+    "id": "doc_jb_005",
+    "title": "Operational Playbooks and Policy Design",
+    "content": "Production defenses treat jailbreaks as an incident class. Playbooks define how to quarantine conversations, roll back unsafe tool permissions, and hot-patch policy or classifiers with minimal collateral damage. Safety reviews gate changes to prompts, tools, and retrieval sources; red-teaming is continuous and targets emerging tactics rather than fixed strings. Moderation UIs surface rationale and appeal paths so safe users are not blocked unnecessarily. Data pipelines version conversation samples used for safety training and clearly label sensitive categories to avoid accidental amplification. Success measures include time-to-detect, time-to-mitigate, prevalence of repeated bypass patterns, and the fraction of requests served with safe alternatives after a refusal. Clear boundaries—what the system will and won’t do—help models steer to compliant assistance rather than brittle, case-by-case blocks.",
+    "category": "llm-jailbreak",
+    "tags": ["operations", "policies", "red team", "incident response", "metrics"]
+  },
+  {
+    "id": "doc_jb_006",
+    "title": "RL-Driven Formalization with Retrieval: Why It Works and Limits",
+    "content": "Reinforcement-learning agents that iteratively formalize prompts (e.g., convert semantics into symbols, logic, or math) and reuse successful structures via retrieval raise success rates because they search beyond fixed templates and target representation ‘blind spots’ in safety classifiers. By decoupling surface wording from intent, these systems evade keyword cues and maintain coherence that defeats perplexity filters. Effectiveness, however, depends on reward design (stealth, success, and intent-preservation signals), access to queries, and the model’s own biases toward structured tasks. Defenses can raise costs by auditing multi-turn consistency, detecting semantic reassembly of disallowed requests, and constraining high-risk capabilities behind out-of-band confirmations. As models and policies evolve, the advantage narrows when safety training includes diverse, formalized adversarial data and when tool chains require verifiable intent rather than free-form text alone.",
+    "category": "llm-jailbreak",
+    "tags": ["RL", "formalization", "retrieval", "stealth", "limitations"]
+  }
+]

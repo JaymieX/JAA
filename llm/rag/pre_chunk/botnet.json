@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_bn_001",
+    "title": "Botnet Architecture: C2 Models and Resilience",
+    "content": "A botnet links many compromised devices to a command layer that coordinates tasks such as scanning, data theft, and DDoS. Command-and-control (C2) commonly uses centralized hubs (e.g., HTTP(S) or IRC), peer-to-peer meshes that reduce single points of failure, or hybrid designs with fallback paths. Operators rotate domains and infrastructure and may rely on domain generation algorithms, fast-flux DNS, or content platforms to improve reachability. Beacons often implement jittered intervals, campaign identifiers, and small task payloads, with bulk data or binaries transferred in compressed chunks. Update channels distribute new modules for cryptomining, ransomware, credential theft, or proxy relays. Stealth techniques include TLS with common cipher suites, User-Agent mimicry, protocol tunneling (e.g., DNS, HTTPS), and living-off-the-land tools to blend in. Effective defenses correlate process lineage with egress behavior, restrict outbound connectivity via authenticated proxies and allowlists, and monitor for rare destinations, uniform timing across hosts, and role inversions (office apps or script interpreters initiating long-lived outbound sessions).",
+    "category": "botnet",
+    "tags": ["C2", "peer-to-peer", "DGA", "fast-flux", "evasion"]
+  },
+  {
+    "id": "doc_bn_002",
+    "title": "IoT Botnets and Edge Constraints",
+    "content": "IoT botnets exploit large populations of devices with weak defaults, limited patching, and exposed services. Typical entry points include credential reuse, open management interfaces, firmware flaws, and permissive UPnP/NAT rules. Once enrolled, devices contribute bandwidth for DDoS, act as scanning relays, or proxy attacker traffic. Edge environments add constraints—heterogeneous hardware, intermittent connectivity, and tight CPU/RAM budgets—that shape both attack and defense. Lightweight telemetry such as flow records (source/destination ports, protocol, connection duration, packet and byte counts, connection state/history) supports on-device heuristics and edge-side classifiers. Practical detection favors compact features, bounded model sizes, and robust handling of noisy data. Ensemble methods like Random Forest, XGBoost, and LightGBM provide strong accuracy/efficiency trade-offs for edge-assisted detection when paired with careful feature selection and validation on time-split data to mitigate leakage. Recovery plans emphasize device inventory, safe resets or re-imaging paths, and rapid isolation of misbehaving segments to preserve service continuity.",
+    "category": "botnet",
+    "tags": ["IoT", "edge", "telemetry", "resource constraints", "ensemble models"]
+  },
+  {
+    "id": "doc_bn_003",
+    "title": "Infection and Propagation Techniques",
+    "content": "Botnet growth relies on automation: wide scanning for open ports, protocol-specific probes, and credential guessing against common services (e.g., telnet/SSH, web dashboards). Exploit chains may target firmware vulnerabilities, unsafe defaults, or outdated third-party components. After initial foothold, scripts fetch loaders that establish persistence and fetch additional modules. Worm-like spreading uses harvested credentials and discovered subnets; some strains pivot through NAT-traversed services or lateral file shares. Propagation throttling reduces noise by pacing scans and randomizing targets. To remain stable, bots typically avoid corrupting critical system areas, prefer memory-resident code with periodic refresh, and disable competing malware. Indicators include bursts of outbound connection attempts to similar ports, repetitive short-lived TCP handshakes, uniform credential attempts, and anomalous traffic from devices that historically interface only locally. Network segmentation, credential hygiene, and strict management plane isolation restrict reachable surfaces and slow epidemic dynamics.",
+    "category": "botnet",
+    "tags": ["propagation", "scanning", "exploitation", "credentials", "persistence"]
+  },
+  {
+    "id": "doc_bn_004",
+    "title": "Detection Signals: Network and Host Perspectives",
+    "content": "High-signal network artifacts for botnet activity include rare or first-seen destinations contacted by many hosts, beacon timing with narrow jitter bands, DNS patterns with high NXDOMAIN or DGA-like randomness, protocol misuse (archivers or interpreters making network calls), and sudden shifts in byte/packet ratios or connection durations. On hosts and appliances, suspicious parent–child process trees, interpreters spawning administrative tools, unsigned modules injected into long-lived processes, and changes to startup tasks or service entries provide triage anchors. Flow-level features—source/destination ports, protocol, connection state, history flags, packet/byte counts, and session duration—enable efficient classification without full payloads. Canary services or files create low-noise tripwires when touched by automated spreading. Effective programs blend allowlisted egress for sensitive systems, anomaly detection over labeled baselines, and retrospective hunts keyed to unusual fan-out, uniform login attempts, or synchronized behavior across devices.",
+    "category": "botnet",
+    "tags": ["detection", "telemetry", "flows", "anomaly", "beacons"]
+  },
+  {
+    "id": "doc_bn_005",
+    "title": "Machine Learning for Botnet Detection: Practical Pipeline",
+    "content": "A practical ML pipeline begins with curated datasets that reflect real device diversity and temporal splits that simulate deployment, reducing overfitting to static snapshots. Feature engineering prioritizes low-cost aggregates: port distributions, per-flow duration and size statistics, packet inter-arrival proxies, and connection state/history encodings. Models selected for edge contexts emphasize compactness and inference speed; tree ensembles (Random Forest, XGBoost, LightGBM) often provide strong baselines with interpretable importance scores. Evaluation reports precision, recall, F1, and robustness under noise (e.g., random feature corruption); confusion matrices for benign vs. malicious traffic guide thresholding. Deployment wraps models with gating rules, rate limits, and quarantine actions to minimize false-positive impact. Continuous learning adapts to drift via periodic retraining on fresh slices and adversarial tests (e.g., beacon jitter, DGA variants). Logging model decisions and feature values supports audits and rapid rollback if degradation appears.",
+    "category": "botnet",
+    "tags": ["machine learning", "edge detection", "features", "evaluation", "drift"]
+  },
+  {
+    "id": "doc_bn_006",
+    "title": "Containment and Resilience Against Botnets",
+    "content": "Containment reduces blast radius while preserving service. Egress control with authenticated proxies and default-deny rules prevents arbitrary outbound C2 and scanning. Segmentation isolates user, device, and administrative planes; sensitive services require explicit allowlists. Rate limiting and anomaly-based blocks on connection attempts, authentication failures, or new destinations provide early friction. Device resilience relies on reproducible builds or golden images, immutable configurations for critical components, and secure update channels. Response playbooks isolate affected segments, rotate credentials and tokens, and rebuild devices before reintroduction. Instrumentation tracks fleet-wide indicators—first-seen destinations, synchronized beacons, or uniform scanner fingerprints—to spot re-emergence. Post-incident work focuses on durable fixes: removing exposed management interfaces, hardening default credentials, minimizing long-lived secrets, and enforcing least privilege for automation agents so that compromised nodes cannot easily pivot.",
+    "category": "botnet",
+    "tags": ["containment", "segmentation", "egress control", "hardening", "recovery"]
+  }
+]

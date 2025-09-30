@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_zd_001",
+    "title": "Zero-Day Basics: Definitions, Timelines, and Risk",
+    "content": "A zero-day vulnerability is a software or hardware flaw unknown to the vendor or maintainer when exploitation first occurs. The term zero-day highlights that defenders have had zero days to produce and deploy a fix. A typical timeline moves from discovery (researcher or attacker identifies a flaw), to weaponization (reliable exploit crafted, often chaining multiple bugs), to detection (telemetry or incident reveals activity), to patch release and deployment, after which the issue becomes a one-day (known) vulnerability. Risk stems from three factors: exploit reliability, reachability of the vulnerable component, and blast radius if code execution or privilege escalation is achieved. Client-side targets (browsers, document viewers) often pair a renderer bug with a sandbox escape; server-side targets may enable authentication bypass or remote code execution over the network. The ‘patch gap’—time between fix publication and broad deployment—extends exposure. Practical reduction focuses on rapid inventory and version visibility, staged rollout of updates with health checks, compensating controls for temporarily unpatchable systems, and detection tuned to behaviors typical of exploitation rather than static signatures tied to specific payloads.",
+    "category": "zero-day",
+    "tags": ["definition", "lifecycle", "patch gap", "risk"]
+  },
+  {
+    "id": "doc_zd_002",
+    "title": "Exploit Chains: From Initial Primitive to Full Compromise",
+    "content": "Zero-day exploitation often proceeds as a chain. An initial primitive (e.g., memory corruption such as use-after-free or type confusion, or a logic flaw in authentication or parsing) yields limited capabilities like information disclosure or controlled reads/writes. Attackers then escalate to arbitrary code execution, escape sandboxes, and gain higher privileges (kernel or hypervisor) to persist and evade monitoring. Reliability is improved with techniques like heap grooming, JIT spraying, ROP/JOP chains, and carefully shaped inputs; stealth increases by minimizing crashes, reducing anomalous network beacons, and abusing trusted binaries to perform actions. Defensive design aims to break links in the chain: strict memory safety (or mitigations like CFI/CET/ASLR/DEP), privilege separation, syscall filtering, brokered device access, and narrow inter-process interfaces. Observability should cover transitions between protection domains—renderer→broker, user→kernel, container→host—because these boundaries are where escapes appear. Post-exploitation resilience relies on credential hygiene, secure keystores, and policy that prevents newly gained privileges from reaching secrets or update channels that could convert a single host compromise into fleet-wide control.",
+    "category": "zero-day",
+    "tags": ["exploit chain", "sandbox escape", "privilege escalation", "memory safety"]
+  },
+  {
+    "id": "doc_zd_003",
+    "title": "Detection Without Signatures: Behavioral Signals and Mitigations",
+    "content": "Because zero-day payloads lack prior indicators, detection emphasizes behaviors common to exploitation. Useful host signals include abnormal crashes near parsing paths, just-in-time compiler anomalies, unexpected child processes from document viewers or browsers, memory regions with execute permissions but no backing file, and attempts to disable logging or snapshots. Network symptoms include atypical egress immediately after file parsing, first-seen destinations, and compressed exfiltration bursts. Exploit mitigations reduce success and improve signal quality: ASLR and DEP/NX disrupt straightforward code injection; CFI and shadow stacks constrain control-flow hijack; sandboxing and seccomp limit post-exploit reach; and brokered file/network access creates auditable choke points. ‘Virtual patching’—WAF rules, protocol hardening, feature flags, or format gatekeeping—can reduce exposure while fixes are prepared. Effective programs couple behavior-based detections with rapid containment playbooks (isolate process/host, rotate credentials, protect update channels), then feed validated events back into engineering to remove fragile parsing paths and adopt safer languages or libraries in future versions.",
+    "category": "zero-day",
+    "tags": ["detection", "behavioral", "mitigations", "virtual patching"]
+  },
+  {
+    "id": "doc_zd_004",
+    "title": "Rapid Response: Shortening Exposure and Safely Rolling Fixes",
+    "content": "Response to a suspected zero-day prioritizes limiting attacker objectives while preserving evidence. Triage confirms impact through minimal, reproducible oracles (e.g., controlled crash with a crafted sample or unauthorized action on a test instance). Containment favors measures that reduce reach without destabilizing systems: disabling vulnerable parsers or preview features, narrowing content types, enforcing strict content-sniffing and attachment policies, or geofencing high-risk entry points. Patch engineering proceeds on a hardened branch with targeted tests and fuzzing aimed at the affected parsers or protocol handlers. Deployment uses staged rings with health metrics and crash telemetry, pre-positioned rollback, and out-of-band communication to owners of the most exposed assets. Post-fix actions include key/secret rotation if theft is plausible, retrospective hunts for earlier exploitation, and provenance checks to ensure updates themselves are authentic. Durable improvements focus on safer parsing (memory-safe components, strict schema validation), clearer kill-switches for risky features, and SLAs that make patch lead time and adoption measurable.",
+    "category": "zero-day",
+    "tags": ["incident response", "patching", "staged rollout", "containment"]
+  },
+  {
+    "id": "doc_zd_005",
+    "title": "IoT Zero-Days and Hybrid Detection with Language Models",
+    "content": "Resource-constrained, heterogeneous IoT environments widen the surface for undisclosed flaws while limiting heavyweight defenses. A practical approach combines multiple detectors: deterministic signature/rule layers for known patterns, anomaly models for deviations from learned baselines, and a language-model layer that ingests tokenized logs or event summaries to capture contextual relationships missed by shallow features. Reported evaluations of such hybrid IDS designs show improved accuracy and lower false-positive rates versus single-method systems, while maintaining near real-time operation suitable for edge deployments. The fusion logic typically flags an event if any component’s confidence crosses threshold, using calibration to balance sensitivity and noise. Implementation details matter: represent logs in forms the model understands, constrain latency with small batches, and preserve provenance so human analysts can audit why an alert fired. This layered strategy helps surface novel behaviors consistent with zero-day exploitation even when no exact signature exists, and it integrates cleanly with containment steps such as isolating affected nodes and rotating credentials used by device agents.",
+    "category": "zero-day",
+    "tags": ["IoT", "intrusion detection", "LLM", "hybrid", "false positives"]
+  },
+  {
+    "id": "doc_zd_006",
+    "title": "Supply-Chain and Third-Party Paths to Zero-Day Impact",
+    "content": "Many incidents leverage undisclosed flaws in dependencies rather than core application code. Attackers target build pipelines, update channels, package registries, and shared libraries to introduce malicious changes that downstream systems trust. Techniques include dependency confusion, typosquatting, signed-but-malicious updates, and exploiting zero-days in build tools or CI agents to alter artifacts at source. Defenses emphasize verifiable provenance and least privilege throughout the pipeline: cryptographic signing with key isolation, reproducible builds, hermetic dependencies, minimal network egress from builders, and admission control that verifies signatures and policy before deployment. An SBOM helps identify where vulnerable components reside; rapid pinning or rollback limits blast radius when issues surface. Runtime guardrails—read-only containers, no exec in prod, egress allowlists for services—constrain what a compromised component can do. Treat third-party updates like code changes: stage, monitor, and retain the ability to revert quickly if anomalies appear after adoption.",
+    "category": "zero-day",
+    "tags": ["supply chain", "provenance", "SBOM", "reproducible builds", "admission control"]
+  }
+]

@@ -5,54 +5,6 @@ from rag_build import RAGBuilder
 from rag_engine import RAGEngine
 
 
-def create_sample_data():
-    """Create sample JSON data for testing"""
-    sample_data = [
-        {
-            "id": "doc_1",
-            "title": "Python Programming Basics",
-            "content": "Python is a high-level programming language known for its simple syntax and readability. It's widely used for web development, data science, and artificial intelligence.",
-            "category": "programming",
-            "tags": ["python", "basics", "syntax"]
-        },
-        {
-            "id": "doc_2",
-            "title": "Machine Learning Fundamentals",
-            "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and make decisions from data without being explicitly programmed.",
-            "category": "ai",
-            "tags": ["machine learning", "ai", "data"]
-        },
-        {
-            "id": "doc_3",
-            "title": "Web Development with Flask",
-            "content": "Flask is a lightweight web framework for Python. It's designed to make getting started quick and easy, with the ability to scale up to complex applications.",
-            "category": "web",
-            "tags": ["flask", "python", "web development"]
-        },
-        {
-            "id": "doc_4",
-            "title": "Data Science Tools",
-            "content": "Popular data science tools include Pandas for data manipulation, NumPy for numerical computing, and Matplotlib for data visualization.",
-            "category": "data science",
-            "tags": ["pandas", "numpy", "matplotlib", "tools"]
-        },
-        {
-            "id": "doc_5",
-            "title": "Neural Networks Overview",
-            "content": "Neural networks are computing systems inspired by biological neural networks. They consist of interconnected nodes that process information using connectionist approaches.",
-            "category": "ai",
-            "tags": ["neural networks", "deep learning", "ai"]
-        }
-    ]
-
-    # Save sample data to JSON file
-    sample_file = Path(__file__).parent / "sample_data.json"
-    with open(sample_file, 'w', encoding='utf-8') as f:
-        json.dump(sample_data, f, indent=2, ensure_ascii=False)
-
-    return str(sample_file)
-
-
 def print_results(results, search_type):
     """Pretty print search results"""
     print(f"\n{'='*50}")
@@ -128,10 +80,10 @@ def run_demo_tests():
     print("\n🧪 Running Demo Tests")
 
     test_queries = [
-        "python programming",
-        "machine learning artificial intelligence",
-        "web development flask",
-        "data visualization tools"
+        "sql injection",
+        "xxs",
+        "jailbreak",
+        "ddos"
     ]
 
     for i, query in enumerate(test_queries, 1):
@@ -143,19 +95,19 @@ def run_demo_tests():
         print(f"\n🔍 SEMANTIC SEARCH")
         semantic_results = rag.semantic_search(query, top_k=2)
         for result in semantic_results:
-            print(f"  {result['rank']}. {result['metadata'].get('title', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
 
         # Keyword search
         print(f"\n🔤 KEYWORD SEARCH")
         keyword_results = rag.keyword_search(query, top_k=2)
         for result in keyword_results:
-            print(f"  {result['rank']}. {result['metadata'].get('title', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
 
         # Hybrid search
         print(f"\n🔀 HYBRID SEARCH")
         hybrid_results = rag.hybrid_search(query, top_k=2)
         for result in hybrid_results:
-            print(f"  {result['rank']}. {result['metadata'].get('title', 'N/A')} (Score: {result['score']:.3f})")
+            print(f"  {result['rank']}. {result['metadata'].get('text', 'N/A')} (Score: {result['score']:.3f})")
 
 
 def main():
@@ -165,10 +117,7 @@ def main():
     print("🔧 RAG Demo Starting...")
 
     # Create sample data if it doesn't exist
-    sample_file = Path(__file__).parent / "sample_data.json"
-    if not sample_file.exists():
-        print("📝 Creating sample data...")
-        sample_file = create_sample_data()
+    sample_file = Path(__file__).parent / "pre_chunk"
 
     # Step 1: Build RAG database
     print("🏗️ Building RAG database...")

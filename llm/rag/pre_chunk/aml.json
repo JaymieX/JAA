@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_aml_001",
+    "title": "Threat Models and Taxonomy in Adversarial ML",
+    "content": "Adversarial machine learning distinguishes attackers by knowledge and control. White-box adversaries know model internals (architecture, weights, gradients) and craft examples via direct optimization; black-box adversaries rely on queries, transfer from surrogates, or decision-only feedback. Goals split into targeted misdirection (force a specific label) and untargeted deception (any wrong label). Attack classes include evasion (test-time perturbations), poisoning (training-time data manipulation, including backdoors), model extraction (replicate a model via API access), and privacy attacks (membership or data inference). Perturbations are usually norm-bounded (ℓ∞, ℓ2) or constrained by perceptual or functional metrics. Practical risk depends on access (file, sensor, or API), robustness of preprocessing, and downstream consequence. Clear threat modeling specifies attacker channels, budgets, and success criteria, enabling evaluations that reflect deployment reality rather than lab-only settings. Robustness claims should state which norms and radii are covered, whether gradient access is assumed, and what defenses apply to training vs. inference paths.",
+    "category": "adversarial-ml",
+    "tags": ["threat models", "white-box", "black-box", "evasion", "poisoning"]
+  },
+  {
+    "id": "doc_aml_002",
+    "title": "Evasion Attacks: Optimization and Transferability",
+    "content": "Evasion attacks perturb inputs to change predictions while staying close to the original under a constraint. Common optimizers include FGSM (single-step gradient sign), PGD (iterative projected ascent), and CW (loss-shaped, often minimal-norm). Black-box settings approximate gradients via queries, or exploit transferability by generating adversarial examples on surrogate models that succeed on unseen targets. Momentum, input diversity, and ensembling improve transfer, especially across architectures trained on similar data. Reliable benchmarking varies radii and budgets, measures top-1 accuracy under attack, and reports attack success rates for both targeted and untargeted goals. Defenses that rely on gradient obfuscation tend to fail under stronger or adaptive attacks; behavior such as vanishing/incorrect gradients or shattered loss landscapes indicates brittle protection. Practical mitigations prefer methods that keep semantics intact under input transformations (e.g., randomized smoothing) or explicitly optimize worst-case performance during training (adversarial training).",
+    "category": "adversarial-ml",
+    "tags": ["evasion", "PGD", "CW", "transferability", "black-box"]
+  },
+  {
+    "id": "doc_aml_003",
+    "title": "Poisoning and Backdoors: Training-Time Manipulation",
+    "content": "Poisoning inserts crafted samples into training so the learned model degrades or behaves maliciously under triggers. Indiscriminate poisoning degrades overall accuracy; targeted poisoning steers specific inputs to chosen labels. Clean-label backdoors maintain label correctness during training yet cause misclassification when a subtle trigger appears at inference; triggers may be small overlays, pattern noise, or feature-collision perturbations that collide internal representations with the target class. Federated or data-scraped pipelines raise exposure due to limited curation and heterogeneous clients. Detection uses data sanitization, representation clustering to find outliers, and trigger synthesis/activation analysis. Mitigations include robust training objectives, provenance and dataset versioning, differential privacy to bound single-sample influence, and strict data admission policies. Posture improves when training artifacts, augmentations, and sampling are reproducible so suspicious subsets can be isolated and re-trained.",
+    "category": "adversarial-ml",
+    "tags": ["poisoning", "backdoor", "clean-label", "federated", "data sanitization"]
+  },
+  {
+    "id": "doc_aml_004",
+    "title": "Defenses that Scale: Adversarial Training and Its Trade-offs",
+    "content": "Adversarial training minimizes worst-case loss within a threat budget by generating attacks during training and updating on perturbed examples. It consistently raises robustness against strong first-order attacks but increases compute cost, can reduce clean accuracy, and may overfit to the attack family and radius used during training. Variants such as TRADES decouple robustness and natural accuracy via a regularization term on decision boundaries; curriculum schedules warm-start the budget; and early stopping or example reweighting can stabilize training. Operationalization demands attack diversity (step sizes, restarts), mixed minibatches, and careful evaluation with unseen attacks to avoid gradient masking. Complementary hardening includes least-privilege model access, input validation that preserves semantics, calibrated confidence, and rejection options when uncertainty is high. Robustness should be tracked as an SLO alongside standard accuracy, with regression tests that replay known bypasses.",
+    "category": "adversarial-ml",
+    "tags": ["adversarial training", "TRADES", "robustness", "trade-offs", "evaluation"]
+  },
+  {
+    "id": "doc_aml_005",
+    "title": "Certified Robustness: IBP and Randomized Smoothing",
+    "content": "Certified defenses provide guarantees that predictions are invariant within a defined perturbation radius. Interval Bound Propagation (IBP) propagates per-layer activation bounds to certify robustness for piecewise-linear networks under ℓ∞ constraints; training with bound-aware losses tightens certificates but can be conservative. Randomized smoothing wraps any base classifier by averaging predictions over Gaussian noise and yields probabilistic ℓ2 certificates at scale; certification radius depends on class probability gaps under noise and can be computed efficiently. Certified methods avoid the brittleness of empirical defenses but may produce smaller radii than typical attack budgets and can impose accuracy or latency costs. In practice, certification augments (not replaces) adversarial training: robustness claims include certified radii distributions, empirical attack results under stronger budgets, and failure analyses where certificates are vacuous.",
+    "category": "adversarial-ml",
+    "tags": ["certified robustness", "IBP", "randomized smoothing", "ℓ∞", "ℓ2"]
+  },
+  {
+    "id": "doc_aml_006",
+    "title": "Evaluation Pitfalls and Adaptive Attacks",
+    "content": "Robustness evaluations fail when the attack space or threat model is incomplete. Gradient masking—via non-differentiable preprocessing, stochastic defenses, or saturated activations—can create the illusion of robustness while adaptive methods like BPDA or expectation over transformation restore effective gradients. Strong suites test diverse norms, budgets, step sizes, restarts, and both white- and black-box settings, and include transfer and decision-based attacks. Reports should fix seeds, disclose preprocessing, and publish code to reproduce curves. For poisoning/backdoors, evaluations must operate at realistic poison rates and verify that triggers remain effective under augmentations. Metrics extend beyond accuracy: attack success rates, certified radii coverage, confidence calibration under shift, and cost to attack (queries, time) give a fuller picture. Production deployments pair periodic red-teaming with monitoring for out-of-distribution inputs and unusual failure modes.",
+    "category": "adversarial-ml",
+    "tags": ["evaluation", "BPDA", "gradient masking", "adaptive attacks", "benchmarks"]
+  }
+]

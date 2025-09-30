@@ -1,0 +1,44 @@
+[
+  {
+    "id": "doc_dp_001",
+    "title": "Data Collection Principles: Minimization and Purpose",
+    "content": "Effective data collection balances insight with restraint. Minimization narrows what is gathered to the smallest useful set, reducing joinability and downstream risk. Purpose specification clarifies why each field exists and how it will be used; fields without a concrete, near-term use should be excluded or sampled aggressively. Context matters: identical attributes can be low risk in aggregate but high risk when linkable across sessions or products. Designing an event schema up front helps: define entities, events, and properties; mark each property as required/optional; and document transformation rules. Prefer coarse-grained values, bounded vocabularies, and deterministic derivations over free text. Favor one-way derivations (e.g., bucketed counts, truncated timestamps, coarse location grids) that satisfy analytical needs while limiting reassembly of individual behavior. Apply collection gates in clients and services so sensitive fields cannot be accidentally emitted. Validate payloads with schema enforcement and reject unknown keys. Finally, capture the lineage of each field—origin, transformations, and consumers—so reviewers can assess necessity and impact when adding, changing, or deprecating telemetry.",
+    "category": "data-privacy",
+    "tags": ["data collection", "minimization", "purpose", "schema", "lineage"]
+  },
+  {
+    "id": "doc_dp_002",
+    "title": "De-Identification: Pseudonymous vs. Anonymous Data",
+    "content": "De-identification techniques vary in strength and purpose. Pseudonymization replaces direct identifiers with tokens or hashes so pipelines can correlate events without storing raw identifiers; this aids operations but does not eliminate re-identification risk if auxiliary data can link records. True anonymization aims to prevent attribution to an individual across reasonable attacks. Classical tabular protections include k-anonymity (each record resembles at least k-1 others on quasi-identifiers), l-diversity (sufficient variety in sensitive attributes within each group), and t-closeness (distributional similarity). These reduce linkage risk but can degrade utility when data are sparse. Differential privacy protects results rather than rows by adding calibrated noise to queries or training, bounding the information any single record can reveal; utility is controlled via a privacy budget. In practice, combine strategies: restrict free-form text, limit high-cardinality keys, coarsen rare categories, rotate or salt tokens, and monitor for uniqueness outliers. Treat de-identification as a process with continuous testing against linkage and membership-inference attempts rather than a one-time transformation.",
+    "category": "data-privacy",
+    "tags": ["de-identification", "pseudonymization", "anonymization", "k-anonymity", "differential privacy"]
+  },
+  {
+    "id": "doc_dp_003",
+    "title": "Privacy by Design in Data Pipelines",
+    "content": "Privacy considerations belong at design time and throughout the data lifecycle. Start with a data map: what is collected, where it flows, who can access it, and how long it persists. Define role- and purpose-based access controls, separating operational identities from analytical ones and restricting production data in development contexts. Encrypt data in transit and at rest, but also constrain access patterns with column- and row-level policies, scoped credentials, and short-lived tokens. Use privacy threat modeling to enumerate plausible misuse: linkage across datasets, unexpected repurposing, inference of sensitive traits, or extraction via poorly bounded APIs. Build mitigations into the architecture—aggregation at the edge, server-side redaction, privacy-preserving transforms, and rate-limited query surfaces that prefer precomputed, differentially private reports over raw tables. Instrument comprehensive, tamper-evident logs for queries and policy decisions so anomalous access can be investigated and controls can be iterated. Treat privacy tests like reliability tests: add automated checks for schema creep, high uniqueness, or excessive sparsity before data ships to shared environments.",
+    "category": "data-privacy",
+    "tags": ["privacy by design", "access control", "threat modeling", "encryption", "governance"]
+  },
+  {
+    "id": "doc_dp_004",
+    "title": "Telemetry and Aggregation Strategies that Limit Exposure",
+    "content": "Many insights do not require granular records. Prefer aggregated telemetry: counts, rates, distributions, and cohort-level trends computed within constrained windows. When raw events are necessary, drop or coarsen precise timestamps, coordinates, device fingerprints, and other high-entropy keys that enable linkage. Apply sliding-window aggregation and sketching structures for large-scale metrics while bounding cardinality. Use salted, rotated identifiers if correlation across long horizons is not needed; rotation schedules and scoped salts prevent durable profiles from forming. For experimentation and product analytics, predefine metrics and use privacy-aware pipelines that compute them from buffered batches, applying clipping and noise when appropriate. Where feasible, push computation closer to the source—on-device summaries or federated protocols—so only aggregates leave the origin. Regularly review top-N dimensions and long tails; enforce limits so rare combinations do not leak uniqueness. Document residual risk for each metric and provide fallback views (e.g., broader buckets) when data are too sparse to publish safely.",
+    "category": "data-privacy",
+    "tags": ["telemetry", "aggregation", "cardinality", "federated", "on-device"]
+  },
+  {
+    "id": "doc_dp_005",
+    "title": "Retention, Deletion, and Derived Data",
+    "content": "Retention controls reduce exposure by limiting how long data remains joinable. Set explicit time-to-live policies per table aligned to the shortest business need, not the longest convenience. Distinguish between raw events, curated features, logs, and aggregates; most aggregates can be kept longer because they reveal less about any single subject, while raw events should expire quickly. Ensure deletion propagates: track dependencies so derived tables, caches, indexes, and backups are updated or re-generated without the removed rows. Prefer rebuildable artifacts over mutable stores that are hard to scrub. Use cryptographic sharding or key-wrapping per cohort so retiring a key renders old shards unreadable without touching every record. Validate retention in practice with periodic drills that measure end-to-end deletion latency and confirm absence in downstream systems. Record the provenance of deletions to support audits and to refine architectures that minimize the number of places where sensitive signals ever exist.",
+    "category": "data-privacy",
+    "tags": ["retention", "deletion", "lineage", "backups", "provenance"]
+  },
+  {
+    "id": "doc_dp_006",
+    "title": "Privacy-Preserving Utility Mining for Periodic Patterns",
+    "content": "When sharing transactional data for analysis, sanitizing sensitive patterns can preserve utility while protecting recurring behaviors. Privacy-preserving utility mining frameworks identify high-utility itemsets and selectively alter or remove contributions in transactions so targeted patterns fall below discovery thresholds. Periodicity introduces extra risk: regular intervals can enable linkage even when identifiers are removed. Algorithms tailored for periodic itemsets use data structures that track utility and spacing between occurrences, then choose victim items and transactions to reduce both utility and periodic signals with minimal side effects. Evaluations commonly measure hiding failure (sensitive patterns that remain), missing cost (loss of non-sensitive patterns), artificial cost (spurious patterns introduced), and similarities in database utility and structure before and after sanitization. In practice, such approaches complement anonymization and aggregation: apply them when data must be released for pattern mining but certain recurring combinations should not be discoverable.",
+    "category": "data-privacy",
+    "tags": ["utility mining", "periodic patterns", "sanitization", "privacy-preserving", "pattern mining"]
+  }
+]

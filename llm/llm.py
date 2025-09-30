@@ -13,11 +13,18 @@ from notion import Notion
 from rag.rag_engine import RAGEngine
 import llm_prompts
 
+# Router Function Enum
+class RouterFunction(str, Enum):
+    SEARCH_ARXIV        = "search_arxiv"
+    NOTION              = "notion"
+    HUMAN_TEXT          = "human_text"
+    VULNERABILITY_CHECK = "vulnerability_check"
+
 # LangGraph State Definition
 class AgentState(TypedDict):
-    user_input: str
-    router_decision: str
-    final_response: str
+    user_input:           str
+    router_decision:      RouterFunction
+    final_response:       str
     conversation_history: list
 
 
@@ -60,32 +67,29 @@ class LLM:
         workflow = StateGraph(AgentState)
 
         # Add nodes
-        workflow.add_node("router", self._router_node)
-        workflow.add_node("search_arxiv", self._search_arxiv_node)
-        workflow.add_node("notion", self._notion_node)
-        workflow.add_node("human_text", self._human_text_node)
-        workflow.add_node("vulnerability_check", self._check_vuln_node)
+        workflow.add_node("router",                                 self._router_node)
+        workflow.add_node(RouterFunction.SEARCH_ARXIV.value,        self._search_arxiv_node)
+        workflow.add_node(RouterFunction.NOTION.value,              self._notion_node)
+        workflow.add_node(RouterFunction.HUMAN_TEXT.value,          self._human_text_node)
+        workflow.add_node(RouterFunction.VULNERABILITY_CHECK.value, self._check_vuln_node)
 
         # Set entry point
         workflow.set_entry_point("router")
 
-        # Add conditional edges from router
+        # Add conditional edges from router (using enum values)
+        mapping = {r.value: r.value for r in RouterFunction}
+        
         workflow.add_conditional_edges(
             "router",
             self._route_decision,
-            {
-                "search_arxiv": "search_arxiv",
-                "notion": "notion",
-                "human_text": "human_text",
-                "vulnerability_check": "vulnerability_check"
-            }
+            mapping
         )
 
         # All nodes go to END
-        workflow.add_edge("search_arxiv", END)
-        workflow.add_edge("notion", END)
-        workflow.add_edge("human_text", END)
-        workflow.add_edge("vulnerability_check", END)
+        workflow.add_edge(RouterFunction.SEARCH_ARXIV.value,        END)
+        workflow.add_edge(RouterFunction.NOTION.value,              END)
+        workflow.add_edge(RouterFunction.HUMAN_TEXT.value,          END)
+        workflow.add_edge(RouterFunction.VULNERABILITY_CHECK.value, END)
 
         self.workflow = workflow.compile()
         
@@ -114,16 +118,22 @@ class LLM:
         try:
             # Attempt to extract function name if we failed default to human_text
             decision = json.loads(router_output)
-            func_name = decision.get("function", "human_text")
+            func_name = decision.get("function", RouterFunction.HUMAN_TEXT)
+
+            # Validate against enum
+            valid_routes = {route.value for route in RouterFunction}
+            if func_name not in valid_routes:
+                func_name = RouterFunction.HUMAN_TEXT
+
         except (json.JSONDecodeError, TypeError):
-            func_name = "human_text"
+            func_name = RouterFunction.HUMAN_TEXT
 
         state["router_decision"] = func_name
         
         return state
 
 
-    def _route_decision(self, state: AgentState) -> Literal["search_arxiv", "notion", "human_text", "vulnerability_check"]:
+    def _route_decision(self, state: AgentState) -> str:
         """Routing function for conditional edges"""
         return state["router_decision"]
 
@@ -196,7 +206,7 @@ class LLM:
         # Create initial state
         initial_state = AgentState(
             user_input=user_text,
-            router_decision="",
+            router_decision=RouterFunction.HUMAN_TEXT,
             final_response="",
             conversation_history=self.conversation_history.copy()
         )

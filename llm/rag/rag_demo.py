@@ -21,6 +21,7 @@ def print_results(results, search_type):
         print(f"Doc ID: {result['doc_id']}")
         print(f"Title: {result['metadata'].get('title', 'N/A')}")
         print(f"Category: {result['metadata'].get('category', 'N/A')}")
+        print(f"Tags: {result['metadata'].get('tags', 'N/A')}")
         print(f"Text: {result['text']}...")
         print("-" * 30)
 

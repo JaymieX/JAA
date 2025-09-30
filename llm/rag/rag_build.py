@@ -118,9 +118,13 @@ class RAGBuilder:
                             'source': str(json_file)
                         }
 
+                        # Handle tags array by converting to comma-separated string
+                        if 'tags' in item and isinstance(item['tags'], list):
+                            metadata['tags'] = ', '.join(str(tag) for tag in item['tags'])
+
                         # Add any additional metadata fields
                         for key, value in item.items():
-                            if key not in ['content', 'text', 'description'] and isinstance(value, (str, int, float)):
+                            if key not in ['content', 'text', 'description', 'tags'] and isinstance(value, (str, int, float)):
                                 metadata[key] = value
                     else:
                         text_content = str(item)
@@ -135,11 +139,13 @@ class RAGBuilder:
                         chunk_metadata['chunk_idx'] = chunk_idx
                         chunk_metadata['original_doc_id'] = metadata['id']
                         chunk_metadata['id'] = f"{metadata['id']}_chunk_{chunk_idx}"
+                        chunk_metadata['tags'] = metadata['tags']
 
                         chunk_doc = Document(
                             text     = chunk_text,
                             metadata = chunk_metadata,
-                            doc_id   = chunk_metadata['id']
+                            doc_id   = chunk_metadata['id'],
+                            tags     = chunk_metadata['tags']
                         )
                         self.documents.append(chunk_doc)
 

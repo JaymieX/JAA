@@ -1,13 +1,18 @@
+import platform
 import os
-# CRITICAL: Set vLLM to use spawn for multiprocessing BEFORE any imports
-os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
 
-import multiprocessing
-# Also set Python's default multiprocessing method
-try:
-    multiprocessing.set_start_method('spawn', force=True)
-except RuntimeError:
-    pass  # Already set
+# vLLM setup
+if platform.system() != 'Windows':
+    
+    # CRITICAL: Set vLLM to use spawn for multiprocessing BEFORE any imports
+    os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
+
+    import multiprocessing
+    # Also set Python's default multiprocessing method
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass  # Already set
 
 from contextlib import asynccontextmanager
 from pathlib import Path

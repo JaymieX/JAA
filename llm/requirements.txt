@@ -15,5 +15,13 @@ streamlit
 dotenv
 notion-client
 
+# RAG
+llama-index
+llama-index-vector-stores-chroma
+llama-index-embeddings-fastembed
+llama-index-retrievers-bm25
+fastembed
+chromadb
+
 # Optional: For better performance
 flash-attn

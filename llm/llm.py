@@ -24,6 +24,7 @@ class RouterFunction(str, Enum):
 class AgentState(TypedDict):
     user_input:           str
     router_decision:      RouterFunction
+    router_query:         str
     final_response:       str
     conversation_history: list
 
@@ -40,7 +41,7 @@ class LLM:
             return
         
         try:
-            self.rag_search = RAGEngine(collection_name="rag_collection")
+            self.rag_search = RAGEngine(collection_name="demo_collection")
             print("RAG Engine loaded.")
         except Exception as e:
             print(f"RAG Engine failed to load: {e}")
@@ -117,18 +118,21 @@ class LLM:
 
         try:
             # Attempt to extract function name if we failed default to human_text
-            decision = json.loads(router_output)
+            decision  = json.loads(router_output)
             func_name = decision.get("function", RouterFunction.HUMAN_TEXT)
+            query     = decision.get("query", "")
 
             # Validate against enum
             valid_routes = {route.value for route in RouterFunction}
             if func_name not in valid_routes:
                 func_name = RouterFunction.HUMAN_TEXT
+                query     = ""
 
         except (json.JSONDecodeError, TypeError):
             func_name = RouterFunction.HUMAN_TEXT
 
         state["router_decision"] = func_name
+        state["router_query"]    = query
         
         return state
 
@@ -140,8 +144,27 @@ class LLM:
 
     def _search_arxiv_node(self, state: AgentState) -> AgentState:
         """Search ArXiv agent node"""
-        print(f"FUNCTION CALL: search_arxiv")
-        result = "Function disabled until future"
+        query = state["router_query"]
+        print(f"FUNCTION CALL: search_arxiv({query})")
+        
+        if query == "":
+            state["final_response"] = "I am sorry I could not search the paper you need"
+            return state
+        
+        result = ""
+        rag_results = self.rag_search.hybrid_search(query, 3)
+        
+        if len(rag_results) <= 0:
+            state["final_response"] = "I am sorry I could not search the paper you need"
+            return state
+        
+        # only sub summerize if we have more than 1 results
+        if len(rag_results) > 1:
+            for rag_result in rag_results:
+                result += self.summarizer.summarize(rag_result['text'], 180, 140)[0]["summary_text"] + "\n"
+            
+        result = self.summarizer.summarize(result, 200, 160)[0]["summary_text"]
+        
         state["final_response"] = result
         return state
 
@@ -208,6 +231,7 @@ class LLM:
             user_input=user_text,
             router_decision=RouterFunction.HUMAN_TEXT,
             final_response="",
+            json_response="",
             conversation_history=self.conversation_history.copy()
         )
 

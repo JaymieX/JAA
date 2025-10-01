@@ -13,7 +13,7 @@ import uvicorn
 
 #from asr import Asr, ModelSize
 from llm import LLM
-from llm_loader import LLMProFile
+from llm_profiles import LLMProFile
 #from tts_engine import TTSEngine
 
 

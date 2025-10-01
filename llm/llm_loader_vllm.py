@@ -77,7 +77,16 @@ def load_llm(profile : LLMProFile):
             lora_path="Amie69/Qwen2.5-7B-cve-coder"
         )
 
-        print(f"✓ LoRA adapter configured: cve-coder")
+        # Verify LoRA adapter by checking if it can be used
+        try:
+            test_output = llm.generate(
+                ["Test"],
+                sampling_params=SamplingParams(max_tokens=1, temperature=0),
+                lora_request=lora_request
+            )
+            print(f"✓ LoRA adapter loaded successfully: cve-coder")
+        except Exception as e:
+            print(f"⚠️ Warning: LoRA adapter may not be loaded correctly: {e}")
 
         return VLLMWrapper(llm, tokenizer, lora_request)
         
@@ -103,7 +112,16 @@ def load_llm(profile : LLMProFile):
             lora_path="Amie69/Qwen2.5-14B-cve-coder"
         )
 
-        print(f"✓ LoRA adapter configured: cve-coder")
+        # Verify LoRA adapter by checking if it can be used
+        try:
+            test_output = llm.generate(
+                ["Test"],
+                sampling_params=SamplingParams(max_tokens=1, temperature=0),
+                lora_request=lora_request
+            )
+            print(f"✓ LoRA adapter loaded successfully: cve-coder")
+        except Exception as e:
+            print(f"⚠️ Warning: LoRA adapter may not be loaded correctly: {e}")
 
         return VLLMWrapper(llm, tokenizer, lora_request)
 

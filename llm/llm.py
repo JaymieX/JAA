@@ -12,6 +12,7 @@ from langgraph.graph import StateGraph, END
 if platform.system() == 'Windows':
     import llm_loader_transformer as llm_loader
 else:
+    print("Using vllm for faster inference")
     import llm_loader_vllm as llm_loader
 
 from summarize import Summarizer

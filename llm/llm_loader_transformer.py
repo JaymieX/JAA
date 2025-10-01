@@ -1,12 +1,7 @@
 from transformers import BitsAndBytesConfig, pipeline, AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 import torch
-from enum import Enum
-
-class LLMProFile(Enum):
-    SMALL       = 0,
-    LARGE       = 1,
-    SUPER_LARGE = 2
+from llm_profiles import LLMProFile
 
 
 def load_llm(profile : LLMProFile):

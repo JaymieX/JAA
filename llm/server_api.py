@@ -1,9 +1,19 @@
+import os
+# CRITICAL: Set vLLM to use spawn for multiprocessing BEFORE any imports
+os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
+
+import multiprocessing
+# Also set Python's default multiprocessing method
+try:
+    multiprocessing.set_start_method('spawn', force=True)
+except RuntimeError:
+    pass  # Already set
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import IO
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form
-import os
 import sys
 
 from fastapi import FastAPI, UploadFile, File, Request
@@ -13,7 +23,7 @@ import uvicorn
 
 #from asr import Asr, ModelSize
 from llm import LLM
-from llm_loader import LLMProFile
+from llm_profiles import LLMProFile
 #from tts_engine import TTSEngine
 
 

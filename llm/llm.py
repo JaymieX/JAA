@@ -1,4 +1,5 @@
 import json
+import platform
 from pathlib import Path
 import torch
 from transformers import BitsAndBytesConfig, pipeline, GenerationConfig, AutoModelForCausalLM, AutoTokenizer
@@ -7,7 +8,13 @@ from enum import Enum
 from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, END
 
-import llm_loader
+# Use vLLM on Unix systems, transformers on Windows
+if platform.system() == 'Windows':
+    import llm_loader_transformer as llm_loader
+else:
+    print("Using vllm for faster inference")
+    import llm_loader_vllm as llm_loader
+
 from summarize import Summarizer
 from notion import Notion
 from rag.rag_engine import RAGEngine

@@ -4,6 +4,7 @@ peft
 accelerate
 bitsandbytes
 langgraph
+vllm
 
 # FastAPI server
 fastapi

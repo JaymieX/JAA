@@ -214,3 +214,15 @@ class RAGBuilder:
             
         except Exception as e:
             return {'error': str(e)}
+        
+
+if __name__ == "__main__":
+    sample_file = Path(__file__).parent / "pre_chunk"
+    
+    # Database doesn't exist, build it
+    print("🏗️ Building new RAG database...")
+    builder = RAGBuilder(collection_name="demo_collection")
+
+    success = builder.build_from_json(str(sample_file))
+    if not success:
+        print("❌ Failed to build database. Exiting.")

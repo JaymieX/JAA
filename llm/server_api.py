@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-#from asr import Asr, ModelSize
+from asr import Asr, ModelSize
 from llm import LLM
 from llm_profiles import LLMProFile
 #from tts_engine import TTSEngine
@@ -43,11 +43,11 @@ async def lifespan(app: FastAPI):
     # --- Profiles ---
     if is_local:
         print("--- Using local setup... ---")
-        #asr_size    : ModelSize  = ModelSize.SMALL
+        asr_size    : ModelSize  = ModelSize.SMALL
         llm_profile : LLMProFile = LLMProFile.SMALL
     else:
         print("--- Using server setup... ---")
-        #asr_size    : ModelSize  = ModelSize.LARGE_V3
+        asr_size    : ModelSize  = ModelSize.LARGE_V3
         llm_profile : LLMProFile = LLMProFile.SUPER_LARGE
     
     # -- Env --
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     print(f"Was .env file loaded? {was_loaded}")
     
     # --- Loading ASR ---
-    #app.state.asr_model = Asr(asr_size)
+    app.state.asr_model = Asr(asr_size)
     
     # --- Loading LLM ---
     app.state.llm = LLM(llm_profile, os.getenv('MY_NOTION_TOKEN'), os.getenv('MY_NOTION_PAGE_ID'))
@@ -139,14 +139,11 @@ async def chat_endpoint(request: Request, user_text: str = Form(...)):
     })
 
 
-"""
-@app.post("/voice-chat/")
-async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
+@app.post("/asr/")
+async def asr_endpoint(request: Request, file: UploadFile = File(...)):
     audio_bytes = await file.read()
 
     asr_model : Asr       = request.app.state.asr_model
-    llm       : LLM       = request.app.state.llm
-    tts       : TTSEngine = request.app.state.tts
 
     user_text = asr_model.transcribe_audio(audio_bytes)
     print(f"USER QUERY: {user_text}")
@@ -158,29 +155,11 @@ async def voice_chat_endpoint(request: Request, file: UploadFile = File(...)):
             status_code=400,
             content={"error": "No speech detected in audio."}
         )
-    
-    # Route the LLM output through function calling logic
-    final_response = llm.router(user_text)
-    print(f"FINAL RESPONSE: {final_response}")
-    print("=" * 50)  # Separator between queries
-
-    # TTS
-    output_filename = "response.wav"
-    output_audio_path = tts.synthesize_speech(final_response, filename=output_filename)
-
-    if output_audio_path:
-        return JSONResponse(content={
-            "user_text": user_text,
-            "bot_text": final_response,  # Show the final response after function calling
-            "audio_url": f"/audio/{output_filename}"  # Provide a URL to the audio
-        })
         
-    else:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Failed to generate audio response."}
-        )
-"""
+    return JSONResponse(content={
+        "user_text": user_text
+    })
+
 
 if __name__ == "__main__":
     if is_local:

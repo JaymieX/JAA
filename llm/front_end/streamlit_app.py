@@ -33,6 +33,13 @@ if "chat_mode" not in st.session_state:
 if "api_url" not in st.session_state:
     st.session_state.api_url = "http://localhost:8000"
 
+# Audio processing state for infinite loop fix
+if "audio_processed" not in st.session_state:
+    st.session_state.audio_processed = False
+
+if "audio_key" not in st.session_state:
+    st.session_state.audio_key = 0
+
 # Header with floating sparkles
 st.markdown("""
 <!-- Floating sparkles -->
@@ -119,9 +126,9 @@ def send_text_chat(user_input):
     except Exception as e:
         return f"**Error:** {str(e)}"
 
-# Function to send voice chat
-def send_voice_chat(audio_data):
-    """Send voice chat to the FastAPI backend"""
+# Function to transcribe audio (ASR only)
+def transcribe_audio(audio_data):
+    """Send audio to ASR endpoint for transcription"""
     try:
         # Create BytesIO object from audio data
         if isinstance(audio_data, bytes):
@@ -131,27 +138,27 @@ def send_voice_chat(audio_data):
 
         files = {"file": ("recording.wav", audio_file, "audio/wav")}
         response = requests.post(
-            f"{st.session_state.api_url}/voice-chat/",
+            f"{st.session_state.api_url}/asr/",
             files=files,
-            timeout=120  # 2 minute timeout for voice processing
+            timeout=60  # 60 second timeout for ASR
         )
 
         if response.status_code == 200:
             data = response.json()
-            user_text = data.get("user_text", "")
-            bot_text = data.get("bot_text", "No response received")
-            audio_url = data.get("audio_url", None)
-
-            return user_text, format_message(bot_text), audio_url
+            return data.get("user_text", "")
         else:
-            return "", f"**Error:** {response.status_code} - {response.text}", None
+            st.error(f"ASR Error: {response.status_code} - {response.text}")
+            return ""
 
     except requests.exceptions.ConnectionError:
-        return "", "**Error:** Unable to connect to the backend server. Please make sure the server is running on port 8000.", None
+        st.error("Unable to connect to the backend server. Please make sure the server is running on port 8000.")
+        return ""
     except requests.exceptions.Timeout:
-        return "", "**Error:** Voice processing timed out. Please try again.", None
+        st.error("ASR request timed out. Please try again.")
+        return ""
     except Exception as e:
-        return "", f"**Error:** {str(e)}", None
+        st.error(f"ASR Error: {str(e)}")
+        return ""
 
 # Chat input handling
 if st.session_state.chat_mode == "Text Chat":
@@ -184,57 +191,39 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # Audio input component (built-in Streamlit)
-    audio_data = st.audio_input("Record your voice message")
+    # Audio input component with dynamic key to fix infinite loop
+    audio_data = st.audio_input(
+        "Record your voice message",
+        key=f"audio_input_{st.session_state.audio_key}"
+    )
 
-    # Process audio when recorded
-    if audio_data is not None:
-        # Show processing message
-        with st.spinner("Processing your voice message..."):
-            user_text, bot_response, audio_url = send_voice_chat(audio_data)
+    # Process audio when recorded (only once - infinite loop fix)
+    if audio_data is not None and not st.session_state.audio_processed:
+        st.session_state.audio_processed = True
 
-        if user_text:  # Only add messages if we got valid transcription
-            # Add user message (transcription)
-            st.session_state.messages.append({"role": "user", "content": f"🎤 **Voice:** {user_text}"})
+        # Step 1: Transcribe audio via ASR endpoint
+        with st.spinner("Transcribing..."):
+            user_text = transcribe_audio(audio_data)
 
-            # Display user message
+        if user_text:
+            # Add user message
+            st.session_state.messages.append({"role": "user", "content": f"🎤 {user_text}"})
+
             with st.chat_message("user"):
-                st.markdown(f"🎤 **Voice:** {user_text}")
+                st.markdown(f"🎤 {user_text}")
 
-            # Display assistant response
+            # Step 2: Send transcribed text to chat endpoint
             with st.chat_message("assistant"):
+                with st.spinner("Processing..."):
+                    bot_response = send_text_chat(user_text)
                 st.markdown(bot_response)
 
-            # Add assistant response to chat history
+            # Add assistant response
             st.session_state.messages.append({"role": "assistant", "content": bot_response})
 
-            # Play audio response if available
-            if audio_url:
-                try:
-                    # Create full URL
-                    if not audio_url.startswith('http'):
-                        full_audio_url = f"{st.session_state.api_url}{audio_url}"
-                    else:
-                        full_audio_url = audio_url
-
-                    # Display audio player
-                    st.audio(full_audio_url)
-
-                    st.markdown("""
-                    <p style="text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 8px;">
-                        🔊 Audio response generated
-                    </p>
-                    """, unsafe_allow_html=True)
-
-                except Exception as e:
-                    st.warning(f"Audio playback not available: {str(e)}")
-
-        elif bot_response and "Error:" in bot_response:
-            # Display error message
-            with st.chat_message("assistant"):
-                st.markdown(bot_response)
-
-        # Clear the audio input after processing
+        # Reset for next recording
+        st.session_state.audio_processed = False
+        st.session_state.audio_key += 1
         st.rerun()
 
     # Instructions

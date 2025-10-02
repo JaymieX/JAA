@@ -5,6 +5,8 @@ import torch
 from llm_profiles import LLMProFile
 
 
+MAX_VRAM_USAGE_PERCENTAGE = 0.8
+
 class VLLMWrapper:
     """Wrapper to make vLLM compatible with transformers pipeline interface"""
     def __init__(self, llm, tokenizer, lora_request=None):
@@ -50,7 +52,7 @@ def load_llm(profile : LLMProFile):
         llm = LLM(
             model="Qwen/Qwen2.5-3B-Instruct",
             dtype="half",
-            gpu_memory_utilization=0.9
+            gpu_memory_utilization=MAX_VRAM_USAGE_PERCENTAGE
         )
 
         return VLLMWrapper(llm, tokenizer)
@@ -67,7 +69,7 @@ def load_llm(profile : LLMProFile):
             dtype="half",
             enable_lora=True,
             max_lora_rank=64,
-            gpu_memory_utilization=0.9
+            gpu_memory_utilization=MAX_VRAM_USAGE_PERCENTAGE
         )
 
         # Create LoRA request
@@ -102,7 +104,7 @@ def load_llm(profile : LLMProFile):
             dtype="half",
             enable_lora=True,
             max_lora_rank=64,
-            gpu_memory_utilization=0.9
+            gpu_memory_utilization=MAX_VRAM_USAGE_PERCENTAGE
         )
 
         # Create LoRA request

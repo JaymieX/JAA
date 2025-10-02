@@ -183,6 +183,10 @@ if st.session_state.chat_mode == "Text Chat":
 
 else:
     # Voice chat interface
+
+    # Brave browser warning
+    st.warning("⚠️ **Brave Browser Users:** Voice input may not work due to streamlit bug. Please use Chrome, Firefox, or Edge for voice features.")
+
     st.markdown("""
     <div style="text-align: center; padding: 10px;">
         <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 16px;">

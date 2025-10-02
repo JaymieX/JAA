@@ -24,5 +24,8 @@ llama-index-retrievers-bm25
 fastembed
 chromadb
 
+# Voice
+openai-whisper
+
 # Optional: For better performance
 flash-attn

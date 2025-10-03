@@ -1,11 +1,12 @@
 import json
 import platform
 from pathlib import Path
+from pydantic import BaseModel
 import torch
 from transformers import BitsAndBytesConfig, pipeline, GenerationConfig, AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 from enum import Enum
-from typing import TypedDict, Literal
+from typing import Optional, Type, TypedDict, Literal, Union
 from langgraph.graph import StateGraph, END
 
 # Use vLLM on Unix systems, transformers on Windows
@@ -102,13 +103,13 @@ class LLM:
         self.workflow = workflow.compile()
         
         
-    def _gen(self, messages, gen_cfg : GenerationConfig):
+    def _gen(self, messages, gen_cfg : GenerationConfig, structured_output_schema: Optional[Union[Type[BaseModel], type]] = None):
         prompt = self.llm.tokenizer.apply_chat_template(
             messages,
             tokenize=False, add_generation_prompt=True
         )
         
-        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False)
+        out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False, structured_output_schema=structured_output_schema)
         return out[0]["generated_text"].strip()
 
 
@@ -121,7 +122,7 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        router_output = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg)
+        router_output = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.ROUTER_RESPONSE_JSON_ENFORCE)
 
         try:
             # Attempt to extract function name if we failed default to human_text

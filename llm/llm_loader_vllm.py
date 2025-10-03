@@ -1,11 +1,15 @@
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
+from vllm.sampling_params import StructuredOutputsParams
 import torch
+from typing import Optional, Union, Type
+from pydantic import BaseModel, TypeAdapter, ConfigDict
 from llm_profiles import LLMProFile
 
 
 MAX_VRAM_USAGE_PERCENTAGE = 0.8
+
 
 class VLLMWrapper:
     """Wrapper to make vLLM compatible with transformers pipeline interface"""
@@ -14,13 +18,42 @@ class VLLMWrapper:
         self.tokenizer    = tokenizer
         self.lora_request = lora_request
 
-    def __call__(self, prompt, generation_config=None, return_full_text=False, **kwargs):
+    def __call__(self,
+                 prompt,
+                 generation_config=None,
+                 return_full_text=False,
+                 structured_output_schema: Optional[Union[Type[BaseModel], type]] = None,
+                 **kwargs):
+        """
+        Generate text with optional structured output
+
+        Args:
+            prompt: Input prompt
+            generation_config: Generation configuration
+            return_full_text: Whether to return full text including prompt
+            structured_output_schema: Optional Pydantic model or Union type for structured JSON output
+        """
+
+        # Setup structured outputs if schema provided
+        structured_outputs = None
+        if structured_output_schema:
+            # Handle Union types (like ROUTER_RESPONSE_JSON_ENFORCE) using TypeAdapter
+            if hasattr(structured_output_schema, '__origin__'):  # Check if it's a Union
+                adapter = TypeAdapter(structured_output_schema)
+                json_schema = adapter.json_schema()
+            else:
+                # Regular Pydantic model
+                json_schema = structured_output_schema.model_json_schema()
+
+            structured_outputs = StructuredOutputsParams(json=json_schema)
+
         # Convert transformers GenerationConfig to vLLM SamplingParams
         sampling_params = SamplingParams(
             max_tokens         = generation_config.max_new_tokens if generation_config else 512,
             temperature        = 0.0 if (generation_config and not generation_config.do_sample) else 0.7,
             repetition_penalty = generation_config.repetition_penalty if generation_config else 1.0,
-            stop_token_ids     = generation_config.eos_token_id if generation_config else None
+            stop_token_ids     = generation_config.eos_token_id if generation_config else None,
+            structured_outputs = structured_outputs
         )
 
         # Generate with vLLM

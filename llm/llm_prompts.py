@@ -1,3 +1,8 @@
+from typing import Union
+
+from pydantic import BaseModel, ConfigDict
+
+
 ROUTER_SYSTEM_PROMPT = {
     "role": "system",
     "content": """You are a prompt router with acess to tools. You must always respond in valid json.
@@ -112,3 +117,19 @@ SECURITY_SYSTEM_PROMPT = {
     buf[sizeof(buf)-1] = '\\0';
     ```"""
 }
+
+
+# Pydantic models for router structured outputs
+class RouterWithQuery(BaseModel):
+    """Router response with search query"""
+    model_config = ConfigDict(extra='forbid')
+    function: str
+    query: str
+
+class RouterWithoutQuery(BaseModel):
+    """Router response without search query"""
+    model_config = ConfigDict(extra='forbid')
+    function: str
+
+# Union type for router outputs - vLLM will use anyOf in JSON schema
+ROUTER_RESPONSE_JSON_ENFORCE = Union[RouterWithQuery, RouterWithoutQuery]

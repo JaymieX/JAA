@@ -69,25 +69,48 @@ CHAT_SYSTEM_PROMPT = {
 
 SECURITY_SYSTEM_PROMPT = {
     "role": "system",
-    "content": """You are a senior application security engineer.
-    
-    You must always respond as a single JSON object with exactly these 5 keys in this order:
+    "content": """You are a senior application security engineer analyzing code for vulnerabilities.
+
+    You must respond with ONLY a JSON object. No text before or after.
+
+    Required JSON structure (6 keys):
     {
+      "code_language": "...",
       "vulnerability_type": "...",
       "why_its_bad": "...",
       "exploit_scenario": "...",
-      "evidence_in_code": ["...", "..."],
-      "fix": { "strategy": "...", "patched_code": "```lang\\n...\\n```" }
+      "evidence_in_code": [
+        {
+          "explanation": "...",
+          "line_number": 0,
+          "evidence_code": "..."
+        }
+      ],
+      "fix": {
+        "strategy": "...",
+        "patched_code": "..."
+      }
     }
 
-    Rules:
-    - Output JSON only.
-    - Each field must be short, clear, and human-readable.
-    - Evidence in Code: max 5 bullet points, each ≤120 chars, citing line numbers/patterns. Wrap any code snippits here in ` ... `
-    - Fix: include both a short strategy and a minimal safe code snippet in the same programming language.
-    - If the fixed code contains " you must use \" to escape in json.
-    - Wrap Assistant code outputs in ``` ... ```.
-    - Do not output any text outside the JSON object.
+    Field Requirements:
+    - code_language: The programming language e.g.("cpp", "python", "javascript")
+    - vulnerability_type: CWE identifier + short description
+    - why_its_bad: 1-2 sentences on security impact
+    - exploit_scenario: Concrete attack example in 1-2 sentences
+    - evidence_in_code: Array of 1-5 evidence objects, each containing:
+      - explanation: Brief explanation of the issue (≤100 chars)
+      - line_number: Line number where issue appears (integer)
+      - evidence_code: The exact vulnerable code snippet from that line
+    - fix.strategy: 1 sentence describing the fix strategy
+    - fix.patched_code: Minimal safe code snippet in the same programming language.
+
+    Critical Rules:
+    - All quotes (") inside string values MUST be escaped as \"
+    - All backslashes (\) inside string values MUST be escaped as \\
+    - No markdown formatting - output raw code without backtick wrappers
+    - Keep descriptions concise and technical
+    - Evidence code should be short, focused snippets from the original code
+    - Do not use code fence like ``` in output
 
     Examples:
 
@@ -100,15 +123,20 @@ SECURITY_SYSTEM_PROMPT = {
 
     Assistant:
     {
+      "code_language": "c",
       "vulnerability_type": "CWE-120: Buffer Copy without Checking Size",
       "why_its_bad": "Allows memory overwrite, leading to crashes or code execution.",
       "exploit_scenario": "An attacker inputs more than 10 characters to overflow the stack buffer.",
       "evidence_in_code": [
-        "Line 2: `strcpy(buf, input);` → unbounded copy into fixed-size buffer"
+        {
+          "explanation": "unbounded copy into fixed-size buffer",
+          "line_number": 2,
+          "evidence_code": "strcpy(buf, input);"
+        }
       ],
       "fix": {
         "strategy": "Use bounded copy with explicit size limit.",
-        "patched_code": "```cpp\\nstrncpy(buf, input, sizeof(buf)-1);\\nbuf[sizeof(buf)-1] = '\\\\0';\\n```"
+        "patched_code": "strncpy(buf, input, sizeof(buf)-1);\\nbuf[sizeof(buf)-1] = '\\0';"
       }
     }
     """
@@ -131,6 +159,15 @@ class RouterWithoutQuery(BaseModel):
 ROUTER_RESPONSE_JSON_ENFORCE = Union[RouterWithQuery, RouterWithoutQuery]
 
 
+class EvidenceBlock(BaseModel):
+    """Evidence details with an explanation, line number and code snippit"""
+    model_config = ConfigDict(extra='forbid')
+
+    explanation: str
+    line_number: int
+    evidence_code: str
+
+
 class FixBlock(BaseModel):
     """Fix details with strategy and patched code snippet"""
     model_config = ConfigDict(extra='forbid')
@@ -138,21 +175,14 @@ class FixBlock(BaseModel):
     strategy: str
     patched_code: str
 
-    @field_validator("patched_code")
-    @classmethod
-    def must_be_code_fenced(cls, v: str) -> str:
-        v = v.strip()
-        if not (v.startswith("```") and v.endswith("```")):
-            raise ValueError("patched_code must be wrapped in triple backticks")
-        return v
-
 
 class VlunCheckResponse(BaseModel):
     """Security analysis response (JSON)"""
     model_config = ConfigDict(extra='forbid')
 
+    code_language: str
     vulnerability_type: str
     why_its_bad: str
     exploit_scenario: str
-    evidence_in_code: list[str]
+    evidence_in_code: list[EvidenceBlock]
     fix: FixBlock

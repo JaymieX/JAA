@@ -15,6 +15,7 @@ streamlit
 # Utilities
 dotenv
 notion-client
+json-repair
 
 # RAG
 llama-index

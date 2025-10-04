@@ -1,13 +1,15 @@
 import json
 import platform
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 import torch
 from transformers import BitsAndBytesConfig, pipeline, GenerationConfig, AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 from enum import Enum
 from typing import Optional, Type, TypedDict, Literal, Union
 from langgraph.graph import StateGraph, END
+from json_repair import repair_json
+
 
 # Use vLLM on Unix systems, transformers on Windows
 if platform.system() == 'Windows':
@@ -108,9 +110,34 @@ class LLM:
             messages,
             tokenize=False, add_generation_prompt=True
         )
-        
+
         out = self.llm(prompt, generation_config=gen_cfg, return_full_text=False, structured_output_schema=structured_output_schema)
-        return out[0]["generated_text"].strip()
+        generated_text = out[0]["generated_text"].strip()
+
+        # If structured output is requested, repair and validate JSON
+        if structured_output_schema is not None:
+            try:
+                # Repair JSON and get object directly (faster)
+                generated_obj = repair_json(generated_text, return_objects=True)
+
+                # Validate with Pydantic schema
+                if hasattr(structured_output_schema, '__origin__'):
+                    # Union type - try to parse with TypeAdapter
+                    adapter = TypeAdapter(structured_output_schema)
+                    adapter.validate_python(generated_obj)
+                    return True, generated_obj
+                else:
+                    # Regular Pydantic model
+                    structured_output_schema.model_validate(generated_obj)
+                    return True, generated_obj
+
+            except Exception as e:
+                # Validation failed, return failure with raw text
+                print(f"⚠️ JSON validation failed: {e}")
+                return False, generated_text
+
+        # Normal text generation, always succeed
+        return True, generated_text
 
 
     def _router_node(self, state: AgentState) -> AgentState:
@@ -122,13 +149,12 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        router_output = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.ROUTER_RESPONSE_JSON_ENFORCE)
+        succeed, gen_obj = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.ROUTER_RESPONSE_JSON_ENFORCE)
 
-        try:
+        if succeed:
             # Attempt to extract function name if we failed default to human_text
-            decision  = json.loads(router_output)
-            func_name = decision.get("function", RouterFunction.HUMAN_TEXT)
-            query     = decision.get("query", "")
+            func_name = gen_obj.get("function", RouterFunction.HUMAN_TEXT)
+            query     = gen_obj.get("query", "")
 
             # Validate against enum
             valid_routes = {route.value for route in RouterFunction}
@@ -136,7 +162,7 @@ class LLM:
                 func_name = RouterFunction.HUMAN_TEXT
                 query     = ""
 
-        except (json.JSONDecodeError, TypeError):
+        else:
             func_name = RouterFunction.HUMAN_TEXT
 
         state["router_decision"] = func_name
@@ -204,7 +230,7 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        response = self._gen([llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:], gen_cfg)
+        succeed, response = self._gen([llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:], gen_cfg)
 
         state["final_response"] = response
         return state
@@ -223,9 +249,39 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
+        succeed, response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
+        final_response = ""
+        if succeed:
+            # Construct human readable 5 points from validated dictionary
+            evidence_lines = []
+            for evidence in response.get("evidence_in_code", []):
+                evidence_lines.append(f"- Line {evidence.get('line_number', 'N/A')}: `{evidence.get('evidence_code', '')}` → {evidence.get('explanation', '')}")
 
-        state["final_response"] = response
+            fix_block = response.get("fix", {})
+
+            final_response = f"""
+1) Vulnerability Type
+{response.get('vulnerability_type', 'Unknown')}
+
+2) Why It's Bad
+{response.get('why_its_bad', 'N/A')}
+
+3) Exploit Scenario
+{response.get('exploit_scenario', 'N/A')}
+
+4) Evidence in Code
+{chr(10).join(evidence_lines)}
+
+5) Fix
+Strategy: {fix_block.get('strategy', 'N/A')}
+Patched Code:
+```{response.get('code_language', '')}
+{fix_block.get('patched_code', '')}
+```"""
+        else:
+            final_response = "I am sorry I could not help you with this, lets try something else."
+
+        state["final_response"] = final_response
         return state
         
         

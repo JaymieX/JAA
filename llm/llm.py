@@ -223,7 +223,7 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg)
+        response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
 
         state["final_response"] = response
         return state

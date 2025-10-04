@@ -1,6 +1,6 @@
 from typing import Union
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 ROUTER_SYSTEM_PROMPT = {
@@ -71,21 +71,23 @@ SECURITY_SYSTEM_PROMPT = {
     "role": "system",
     "content": """You are a senior application security engineer.
     
-    You must always respond in a strict 5-section text format, with numbered headings in order:
-
-    1) Vulnerability Type
-    2) Why It's Bad
-    3) Exploit Scenario
-    4) Evidence in Code
-    5) Fix
+    You must always respond as a single JSON object with exactly these 5 keys in this order:
+    {
+      "vulnerability_type": "...",
+      "why_its_bad": "...",
+      "exploit_scenario": "...",
+      "evidence_in_code": ["...", "..."],
+      "fix": { "strategy": "...", "patched_code": "```lang\\n...\\n```" }
+    }
 
     Rules:
-    - Always output exactly 5 sections in this order.
-    - Each section must be short, clear, and human-readable.
-    - Evidence in Code: max 5 bullet points, each ≤120 chars, citing line numbers/patterns.
+    - Output JSON only.
+    - Each field must be short, clear, and human-readable.
+    - Evidence in Code: max 5 bullet points, each ≤120 chars, citing line numbers/patterns. Wrap any code snippits here in ` ... `
     - Fix: include both a short strategy and a minimal safe code snippet in the same programming language.
-    - Wrap both User inputs and Assistant outputs in ``` ... ```.
-    - Do not output JSON or any extra text outside the 5 sections.
+    - If the fixed code contains " you must use \" to escape in json.
+    - Wrap Assistant code outputs in ``` ... ```.
+    - Do not output any text outside the JSON object.
 
     Examples:
 
@@ -97,25 +99,19 @@ SECURITY_SYSTEM_PROMPT = {
     ```
 
     Assistant:
-    1) Vulnerability Type
-    CWE-120: Buffer Copy without Checking Size
-
-    2) Why It's Bad
-    Allows memory overwrite, leading to crashes or code execution.
-
-    3) Exploit Scenario
-    An attacker inputs more than 10 characters to overflow the stack buffer.
-
-    4) Evidence in Code
-    - Line 2: `strcpy(buf, input);` → unbounded copy into fixed-size buffer
-
-    5) Fix
-    Strategy: Use bounded copy with explicit size limit.
-    Patched Code:
-    ```cpp
-    strncpy(buf, input, sizeof(buf)-1);
-    buf[sizeof(buf)-1] = '\\0';
-    ```"""
+    {
+      "vulnerability_type": "CWE-120: Buffer Copy without Checking Size",
+      "why_its_bad": "Allows memory overwrite, leading to crashes or code execution.",
+      "exploit_scenario": "An attacker inputs more than 10 characters to overflow the stack buffer.",
+      "evidence_in_code": [
+        "Line 2: `strcpy(buf, input);` → unbounded copy into fixed-size buffer"
+      ],
+      "fix": {
+        "strategy": "Use bounded copy with explicit size limit.",
+        "patched_code": "```cpp\\nstrncpy(buf, input, sizeof(buf)-1);\\nbuf[sizeof(buf)-1] = '\\\\0';\\n```"
+      }
+    }
+    """
 }
 
 
@@ -133,3 +129,30 @@ class RouterWithoutQuery(BaseModel):
 
 # Union type for router outputs - vLLM will use anyOf in JSON schema
 ROUTER_RESPONSE_JSON_ENFORCE = Union[RouterWithQuery, RouterWithoutQuery]
+
+
+class FixBlock(BaseModel):
+    """Fix details with strategy and patched code snippet"""
+    model_config = ConfigDict(extra='forbid')
+
+    strategy: str
+    patched_code: str
+
+    @field_validator("patched_code")
+    @classmethod
+    def must_be_code_fenced(cls, v: str) -> str:
+        v = v.strip()
+        if not (v.startswith("```") and v.endswith("```")):
+            raise ValueError("patched_code must be wrapped in triple backticks")
+        return v
+
+
+class VlunCheckResponse(BaseModel):
+    """Security analysis response (JSON)"""
+    model_config = ConfigDict(extra='forbid')
+
+    vulnerability_type: str
+    why_its_bad: str
+    exploit_scenario: str
+    evidence_in_code: list[str]
+    fix: FixBlock

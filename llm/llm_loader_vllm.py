@@ -1,10 +1,10 @@
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
-from vllm.sampling_params import StructuredOutputsParams
+from vllm.sampling_params import GuidedDecodingParams
 import torch
 from typing import Optional, Union, Type
-from pydantic import BaseModel, TypeAdapter, ConfigDict
+from pydantic import BaseModel, TypeAdapter
 from llm_profiles import LLMProFile
 
 
@@ -34,10 +34,10 @@ class VLLMWrapper:
             structured_output_schema: Optional Pydantic model or Union type for structured JSON output
         """
 
-        # Setup structured outputs if schema provided
-        structured_outputs = None
+        # Setup guided decoding if schema provided
+        guided_decoding = None
         if structured_output_schema:
-            # Handle Union types (like ROUTER_RESPONSE_JSON_ENFORCE) using TypeAdapter
+            # Handle Union types (like RouterResponse) using TypeAdapter
             if hasattr(structured_output_schema, '__origin__'):  # Check if it's a Union
                 adapter = TypeAdapter(structured_output_schema)
                 json_schema = adapter.json_schema()
@@ -45,7 +45,7 @@ class VLLMWrapper:
                 # Regular Pydantic model
                 json_schema = structured_output_schema.model_json_schema()
 
-            structured_outputs = StructuredOutputsParams(json=json_schema)
+            guided_decoding = GuidedDecodingParams(json=json_schema)
 
         # Convert transformers GenerationConfig to vLLM SamplingParams
         sampling_params = SamplingParams(
@@ -53,7 +53,7 @@ class VLLMWrapper:
             temperature        = 0.0 if (generation_config and not generation_config.do_sample) else 0.7,
             repetition_penalty = generation_config.repetition_penalty if generation_config else 1.0,
             stop_token_ids     = generation_config.eos_token_id if generation_config else None,
-            structured_outputs = structured_outputs
+            guided_decoding    = guided_decoding
         )
 
         # Generate with vLLM

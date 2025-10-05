@@ -1,0 +1,32 @@
+# Core ML and AI
+transformers==4.57.0
+peft==0.17.1
+accelerate==1.10.1
+bitsandbytes==0.48.1
+langgraph==0.6.8
+vllm==0.11.0
+
+# FastAPI server
+fastapi==0.118.0
+uvicorn==0.37.0
+python-multipart==0.0.20
+streamlit==1.50.0
+
+# Utilities
+dotenv==0.9.9
+notion-client==2.5.0
+json-repair==0.51.0
+
+# RAG
+llama-index==0.14.4
+llama-index-vector-stores-chroma==0.5.3
+llama-index-embeddings-fastembed==0.5.0
+llama-index-retrievers-bm25==0.6.5
+fastembed==0.7.3
+chromadb==1.1.0
+
+# Voice
+openai-whisper==20250625
+
+# Optional: For better performance
+flash-attn==2.4.2

@@ -237,6 +237,50 @@ class LLM:
         return state
 
 
+    def _print_vlun_code_human(self, response):
+        # Construct human readable 5 points from validated dictionary
+        evidence_lines = []
+        for evidence in response.get("evidence_in_code", []):
+            evidence_lines.append(
+                f"- Line {evidence.get('line_number', 'N/A')}: "
+                f"`{evidence.get('evidence_code', '')}` → {evidence.get('explanation', '')}"
+            )
+
+        fix_block = response.get("fix", {})
+
+        # Build response sections with proper indentation
+        sections = [
+            "1) Vulnerability Type",
+            response.get('vulnerability_type', 'Unknown'),
+            "",
+            "2) Why It's Bad",
+            response.get('why_its_bad', 'N/A'),
+            "",
+            "3) Exploit Scenario",
+            response.get('exploit_scenario', 'N/A'),
+            "",
+            "4) Evidence in Code",
+            '\n'.join(evidence_lines),
+            "",
+            "5) Fix",
+            f"Strategy: {fix_block.get('strategy', 'N/A')}",
+            "Patched Code:",
+            f"```{response.get('code_language', '')}",
+            fix_block.get('patched_code', ''),
+            "```"
+        ]
+
+        # Add optional 6) Relevance section if present
+        if 'relevance' in response:
+            sections.extend([
+                "",
+                "6) Relevance",
+                response.get('relevance')
+            ])
+
+        return '\n'.join(sections)
+
+
     def _check_vuln_node(self, state: AgentState) -> AgentState:
         """Vulnerability check agent node"""
         print(f"FUNCTION CALL: vulnerability_check()")
@@ -253,32 +297,7 @@ class LLM:
         succeed, response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
         final_response = ""
         if succeed:
-            # Construct human readable 5 points from validated dictionary
-            evidence_lines = []
-            for evidence in response.get("evidence_in_code", []):
-                evidence_lines.append(f"- Line {evidence.get('line_number', 'N/A')}: `{evidence.get('evidence_code', '')}` → {evidence.get('explanation', '')}")
-
-            fix_block = response.get("fix", {})
-
-            final_response = f"""
-1) Vulnerability Type
-{response.get('vulnerability_type', 'Unknown')}
-
-2) Why It's Bad
-{response.get('why_its_bad', 'N/A')}
-
-3) Exploit Scenario
-{response.get('exploit_scenario', 'N/A')}
-
-4) Evidence in Code
-{chr(10).join(evidence_lines)}
-
-5) Fix
-Strategy: {fix_block.get('strategy', 'N/A')}
-Patched Code:
-```{response.get('code_language', '')}
-{fix_block.get('patched_code', '')}
-```"""
+            final_response = self._print_vlun_code_human(response)
         else:
             final_response = "I am sorry I could not help you with this, lets try something else."
 

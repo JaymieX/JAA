@@ -195,9 +195,10 @@ class LLM:
         # only sub summerize if we have more than 1 results
         if len(rag_results) > 1:
             for rag_result in rag_results:
-                result += self.summarizer.summarize(rag_result['text'], 180, 140)[0]["summary_text"] + "\n"
+                print(f"RAG result: {str(rag_result)} \n\n")
+                result += self.summarizer.summarize(rag_result['text'], 180, 80)[0]["summary_text"] + "\n"
             
-        result = self.summarizer.summarize(result, 200, 160)[0]["summary_text"]
+        result = self.summarizer.summarize(result, 200, 60)[0]["summary_text"]
         
         state["final_response"] = result
         return state

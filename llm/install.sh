@@ -2,7 +2,7 @@
 sudo apt update
 sudo apt install ffmpeg
 
-pip install -r requirements.txt
+pip install -r requirements.txt -c constraints.txt
 
 # Build RAG database
 if [ "$1" == "lazy" ]; then

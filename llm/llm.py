@@ -35,6 +35,7 @@ class AgentState(TypedDict):
     user_input:           str
     router_decision:      RouterFunction
     router_query:         str
+    query_keywords:       set[str]
     final_response:       str
     conversation_history: list
 
@@ -103,6 +104,16 @@ class LLM:
         workflow.add_edge(RouterFunction.VULNERABILITY_CHECK.value, END)
 
         self.workflow = workflow.compile()
+        
+    
+    def _extract_keywords(self, text: str, keywords: set[str] = {'rag'}) -> set[str]:
+        """Extract keywords found in text (case-insensitive)"""
+        text_lower = text.lower()
+        found = set()
+        for keyword in keywords:
+            if keyword.lower() in text_lower:
+                found.add(keyword)
+        return found
         
         
     def _gen(self, messages, gen_cfg : GenerationConfig, structured_output_schema: Optional[Union[Type[BaseModel], type]] = None):
@@ -314,6 +325,8 @@ class LLM:
         initial_state = AgentState(
             user_input=user_text,
             router_decision=RouterFunction.HUMAN_TEXT,
+            router_query="",
+            query_keywords={},
             final_response="",
             json_response="",
             conversation_history=self.conversation_history.copy()

@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
         llm_profile : LLMProFile = LLMProFile.SMALL
     else:
         print("--- Using server setup... ---")
-        asr_size    : ModelSize  = ModelSize.MEDIUM
+        asr_size    : ModelSize  = ModelSize.SMALL
         llm_profile : LLMProFile = LLMProFile.SUPER_LARGE
     
     # -- Env --

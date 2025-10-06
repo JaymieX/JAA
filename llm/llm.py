@@ -1,13 +1,11 @@
-import json
 import platform
-from pathlib import Path
 from pydantic import BaseModel, TypeAdapter
-import torch
-from transformers import BitsAndBytesConfig, pipeline, GenerationConfig, AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+from transformers import GenerationConfig
 from enum import Enum
-from typing import Optional, Type, TypedDict, Literal, Union
+from typing import Optional, Type, TypedDict, Literal, Union, Annotated
 from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
 from json_repair import repair_json
 
 
@@ -33,17 +31,17 @@ class RouterFunction(str, Enum):
 # LangGraph State Definition
 class AgentState(TypedDict):
     user_input:           str
-    router_decision:      RouterFunction
-    router_query:         str
-    query_keywords:       set[str]
-    vuln_response_dict:   dict  # Store vulnerability check response
-    final_response:       str
-    conversation_history: list
+    router_decision:      Optional[RouterFunction]
+    router_query:         Optional[str]
+    query_keywords:       Optional[set[str]]
+    vuln_response_dict:   Optional[dict]  # Store vulnerability check response
+    final_response:       Optional[str]
+    conversation_history: Annotated[list, add_messages]  # Use LangGraph's message reducer
 
 
 class LLM:
     def __init__(self, profile : llm_loader.LLMProFile, notion_token, notion_page_id):
-        self.conversation_history = []
+        # Remove self.conversation_history - now managed by LangGraph state
 
         self.llm = llm_loader.load_llm(profile)
         if (self.llm is not None):    
@@ -115,7 +113,9 @@ class LLM:
             }
         )
 
-        self.workflow = workflow.compile()
+        # Compile with MemorySaver for conversation persistence
+        self.checkpointer = MemorySaver()
+        self.workflow = workflow.compile(checkpointer=self.checkpointer)
         
     
     def _check_rag_keyword(self, state: AgentState) -> Literal["vuln_relevance", "END"]:
@@ -132,6 +132,25 @@ class LLM:
             if keyword.lower() in text_lower:
                 found.add(keyword)
         return found
+
+    def _messages_to_dicts(self, messages: list) -> list:
+        """Convert LangChain message objects to plain dict format"""
+        result = []
+        for msg in messages:
+            # Check if it's a LangChain message object
+            if hasattr(msg, 'type') and hasattr(msg, 'content'):
+                # Convert LangChain message to dict
+                role_map = {
+                    'human': 'user',
+                    'ai': 'assistant',
+                    'system': 'system'
+                }
+                role = role_map.get(msg.type, 'user')
+                result.append({"role": role, "content": msg.content})
+            elif isinstance(msg, dict):
+                # Already a dict, keep as is
+                result.append(msg)
+        return result
         
         
     def _gen(self, messages, gen_cfg : GenerationConfig, structured_output_schema: Optional[Union[Type[BaseModel], type]] = None):
@@ -169,7 +188,7 @@ class LLM:
         return True, generated_text
 
 
-    def _router_node(self, state: AgentState) -> AgentState:
+    def _router_node(self, state: AgentState) -> dict:
         """Router node that decides which agent to use"""
         gen_cfg = GenerationConfig(
             max_new_tokens=50,
@@ -177,7 +196,7 @@ class LLM:
             repetition_penalty=1.05,
             eos_token_id=self.eos_ids
         )
-        
+
         keywords = self._extract_keywords(state["user_input"])
 
         succeed, gen_obj = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.ROUTER_RESPONSE_JSON_ENFORCE)
@@ -195,12 +214,14 @@ class LLM:
 
         else:
             func_name = RouterFunction.HUMAN_TEXT
+            query     = ""
 
-        state["router_decision"] = func_name
-        state["router_query"]    = query
-        state["query_keywords"]  = keywords
-        
-        return state
+        # Return only updates - LangGraph will merge into state
+        return {
+            "router_decision": func_name,
+            "router_query":    query,
+            "query_keywords":  keywords
+        }
 
 
     def _route_decision(self, state: AgentState) -> str:
@@ -208,49 +229,45 @@ class LLM:
         return state["router_decision"]
 
 
-    def _search_arxiv_node(self, state: AgentState) -> AgentState:
+    def _search_arxiv_node(self, state: AgentState) -> dict:
         """Search ArXiv agent node"""
-        query = state["router_query"]
+        query = state.get("router_query", "")
         print(f"FUNCTION CALL: search_arxiv({query})")
-        
+
         if query == "":
-            state["final_response"] = "I am sorry I could not search the paper you need"
-            return state
-        
+            return {"final_response": "I am sorry I could not search the paper you need"}
+
         result = ""
         rag_results = self.rag_search.hybrid_search(query, 3)
-        
+
         if len(rag_results) <= 0:
-            state["final_response"] = "I am sorry I could not search the paper you need"
-            return state
-        
+            return {"final_response": "I am sorry I could not search the paper you need"}
+
         # only sub summerize if we have more than 1 results
         if len(rag_results) > 1:
             for rag_result in rag_results:
                 print(f"RAG result: {str(rag_result)} \n\n")
                 result += self.summarizer.summarize(rag_result['text'], 180, 80)[0]["summary_text"] + "\n"
-            
+
         result = self.summarizer.summarize(result, 200, 60)[0]["summary_text"]
-        
-        state["final_response"] = result
-        return state
+
+        return {"final_response": result}
 
 
-    def _notion_node(self, state: AgentState) -> AgentState:
+    def _notion_node(self, state: AgentState) -> dict:
         """Notion agent node"""
         print(f"FUNCTION CALL: notion()")
 
         if not self.is_notion_connected:
             result = "You are not connected to notion. I cannot write to it."
         else:
-            self.notion.write_blocks(self.notion.conversation_to_notion_blocks(state["conversation_history"][-10:]))
+            self.notion.write_blocks(self.notion.conversation_to_notion_blocks(state.get("conversation_history", [])[-10:]))
             result = "I have written the conversation to notion."
 
-        state["final_response"] = result
-        return state
+        return {"final_response": result}
 
 
-    def _human_text_node(self, state: AgentState) -> AgentState:
+    def _human_text_node(self, state: AgentState) -> dict:
         """Human text conversation agent node"""
         print(f"FUNCTION CALL: human_text()")
 
@@ -263,10 +280,16 @@ class LLM:
             eos_token_id=self.eos_ids
         )
 
-        succeed, response = self._gen([llm_prompts.CHAT_SYSTEM_PROMPT] + state["conversation_history"][-10:], gen_cfg)
+        # Convert LangChain messages back to dict format for LLM
+        conversation = state.get("conversation_history", [])[-10:]
+        conversation_dicts = self._messages_to_dicts(conversation)
 
-        state["final_response"] = response
-        return state
+        prompt = [llm_prompts.CHAT_SYSTEM_PROMPT] + conversation_dicts
+        print(str(prompt))
+
+        succeed, response = self._gen(prompt, gen_cfg)
+
+        return {"final_response": response}
 
 
     def _print_vlun_code_human(self, response):
@@ -313,7 +336,7 @@ class LLM:
         return '\n'.join(sections)
 
 
-    def _check_vuln_node(self, state: AgentState) -> AgentState:
+    def _check_vuln_node(self, state: AgentState) -> dict:
         """Vulnerability check agent node"""
         print(f"FUNCTION CALL: vulnerability_check()")
 
@@ -329,14 +352,14 @@ class LLM:
         succeed, response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
 
         if succeed:
-            state["vuln_response_dict"] = response
-            state["final_response"] = self._print_vlun_code_human(response)
+            return {
+                "vuln_response_dict": response,
+                "final_response": self._print_vlun_code_human(response)
+            }
         else:
-            state["final_response"] = "I am sorry I could not help you with this, lets try something else."
+            return {"final_response": "I am sorry I could not help you with this, lets try something else."}
 
-        return state
-
-    def _vlun_relevence_node(self, state: AgentState) -> AgentState:
+    def _vlun_relevence_node(self, state: AgentState) -> dict:
         """Add RAG-based relevance to vulnerability check response"""
         print(f"FUNCTION CALL: vuln_relevance()")
 
@@ -382,40 +405,55 @@ class LLM:
         if succeed:
             # Add relevance to vuln dict and regenerate response
             vuln_dict["relevance"] = relevance_text
-            state["final_response"] = self._print_vlun_code_human(vuln_dict)
+            return {"final_response": self._print_vlun_code_human(vuln_dict)}
 
-        return state
+        # If failed, return empty dict (no state updates)
+        return {}
 
 
-    def generate_response(self, user_text):
-        """Main response generation using LangGraph workflow"""
-        # Update conversation history
-        self.conversation_history.append({"role":"user","content":user_text})
+    def generate_response(self, user_text, thread_id: str = "default", stream: bool = False):
+        """
+        Main response generation using LangGraph workflow
 
-        # Create initial state
-        initial_state = AgentState(
-            user_input=user_text,
-            router_decision=RouterFunction.HUMAN_TEXT,
-            router_query="",
-            query_keywords={},
-            final_response="",
-            json_response="",
-            conversation_history=self.conversation_history.copy()
-        )
+        Args:
+            user_text: User input message
+            thread_id: Thread ID for conversation persistence (default: "default")
+            stream: Whether to use streaming mode (default: False)
+
+        Returns:
+            Response text (or generator if stream=True)
+        """
+        # Create initial state - only pass required inputs
+        initial_state = {
+            "user_input": user_text,
+            "conversation_history": [{"role": "user", "content": user_text}]
+        }
+
+        # Config for thread-based persistence
+        config = {"configurable": {"thread_id": thread_id}}
 
         # Run LangGraph workflow
-        try:
-            result = self.workflow.invoke(initial_state)
-            output = result["final_response"]
+        if stream:
+            # Streaming mode - return generator
+            return self._stream_response(initial_state, config)
+        else:
+            # Standard invoke mode
+            result = self.workflow.invoke(initial_state, config)
+            output = result.get("final_response", "I'm sorry, I couldn't generate a response.")
 
-            # Update conversation history with response
-            self.conversation_history.append({"role":"assistant","content":output})
+            # Add assistant response to conversation history automatically
+            # This ensures it's recorded regardless of which node was executed
+            self.workflow.update_state(
+                config,
+                {"conversation_history": [{"role": "assistant", "content": output}]}
+            )
 
             return output
 
-        except Exception as e:
-            print(f"LangGraph workflow error: {e}")
-            # Fallback to simple response
-            fallback_response = "I'm sorry, I encountered an error processing your request."
-            
-            return fallback_response
+    def _stream_response(self, initial_state, config):
+        """Generator for streaming responses"""
+        for event in self.workflow.stream(initial_state, config):
+            # Yield intermediate results as they become available
+            for node_name, node_output in event.items():
+                if "final_response" in node_output:
+                    yield node_output["final_response"]

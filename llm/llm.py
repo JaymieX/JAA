@@ -36,6 +36,7 @@ class AgentState(TypedDict):
     router_decision:      RouterFunction
     router_query:         str
     query_keywords:       set[str]
+    vuln_response_dict:   dict  # Store vulnerability check response
     final_response:       str
     conversation_history: list
 
@@ -84,6 +85,7 @@ class LLM:
         workflow.add_node(RouterFunction.NOTION.value,              self._notion_node)
         workflow.add_node(RouterFunction.HUMAN_TEXT.value,          self._human_text_node)
         workflow.add_node(RouterFunction.VULNERABILITY_CHECK.value, self._check_vuln_node)
+        workflow.add_node("vuln_relevance",                         self._vlun_relevence_node)
 
         # Set entry point
         workflow.set_entry_point("router")
@@ -97,15 +99,31 @@ class LLM:
             mapping
         )
 
-        # All nodes go to END
+        # All nodes go to END except vulnerability_check (conditional)
         workflow.add_edge(RouterFunction.SEARCH_ARXIV.value,        END)
         workflow.add_edge(RouterFunction.NOTION.value,              END)
         workflow.add_edge(RouterFunction.HUMAN_TEXT.value,          END)
-        workflow.add_edge(RouterFunction.VULNERABILITY_CHECK.value, END)
+        workflow.add_edge("vuln_relevance",                         END)
+
+        # Conditional edge from vulnerability_check
+        workflow.add_conditional_edges(
+            RouterFunction.VULNERABILITY_CHECK.value,
+            self._check_rag_keyword,
+            {
+                "vuln_relevance": "vuln_relevance",
+                END: END
+            }
+        )
 
         self.workflow = workflow.compile()
         
     
+    def _check_rag_keyword(self, state: AgentState) -> Literal["vuln_relevance", "END"]:
+        """Check if 'rag' keyword is present to route to relevance node"""
+        if 'rag' in state.get("query_keywords", set()):
+            return "vuln_relevance"
+        return END
+
     def _extract_keywords(self, text: str, keywords: set[str] = {'rag'}) -> set[str]:
         """Extract keywords found in text (case-insensitive)"""
         text_lower = text.lower()
@@ -159,6 +177,8 @@ class LLM:
             repetition_penalty=1.05,
             eos_token_id=self.eos_ids
         )
+        
+        keywords = self._extract_keywords(state["user_input"])
 
         succeed, gen_obj = self._gen([llm_prompts.ROUTER_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.ROUTER_RESPONSE_JSON_ENFORCE)
 
@@ -178,6 +198,7 @@ class LLM:
 
         state["router_decision"] = func_name
         state["router_query"]    = query
+        state["query_keywords"]  = keywords
         
         return state
 
@@ -306,16 +327,70 @@ class LLM:
         )
 
         succeed, response = self._gen([llm_prompts.SECURITY_SYSTEM_PROMPT, {"role":"user","content":state["user_input"]}], gen_cfg, llm_prompts.VlunCheckResponse)
-        final_response = ""
-        if succeed:
-            final_response = self._print_vlun_code_human(response)
-        else:
-            final_response = "I am sorry I could not help you with this, lets try something else."
 
-        state["final_response"] = final_response
+        if succeed:
+            state["vuln_response_dict"] = response
+            state["final_response"] = self._print_vlun_code_human(response)
+        else:
+            state["final_response"] = "I am sorry I could not help you with this, lets try something else."
+
         return state
-        
-        
+
+    def _vlun_relevence_node(self, state: AgentState) -> AgentState:
+        """Add RAG-based relevance to vulnerability check response"""
+        print(f"FUNCTION CALL: vuln_relevance()")
+
+        vuln_dict = state.get("vuln_response_dict", {})
+
+        # Use vulnerability_type as search keyword
+        search_query = vuln_dict.get("vulnerability_type")
+
+        # Get top 3 RAG results
+        rag_results = self.rag_search.hybrid_search(search_query, top_k=3)
+
+        # Early out if no results found
+        if not rag_results:
+            return state
+
+        # Build context from RAG results
+        rag_context = "\n\n".join([
+            f"Reference {i+1}: {result['text']}"
+            for i, result in enumerate(rag_results)
+        ])
+
+        # Generate relevance using RAG context
+        gen_cfg = GenerationConfig(
+            max_new_tokens=200,
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.9,
+            repetition_penalty=1.05,
+            eos_token_id=self.eos_ids
+        )
+
+        # Build prompt with proper indentation
+        prompt_parts = [
+            "Using these references, explain the relevance and context of this vulnerability:",
+            "",
+            rag_context,
+            "",
+            f"Vulnerability Type: {vuln_dict.get('vulnerability_type', 'Unknown')}"
+        ]
+        prompt = '\n'.join(prompt_parts)
+
+        succeed, relevance_text = self._gen(
+            [llm_prompts.SECURITY_RAG_SYSTEM_PROMPT, {"role":"user","content":prompt}],
+            gen_cfg
+        )
+
+        if succeed:
+            # Add relevance to vuln dict and regenerate response
+            vuln_dict["relevance"] = relevance_text
+            state["final_response"] = self._print_vlun_code_human(vuln_dict)
+
+        return state
+
+
     def generate_response(self, user_text):
         """Main response generation using LangGraph workflow"""
         # Update conversation history

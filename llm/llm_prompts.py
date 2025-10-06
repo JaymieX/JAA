@@ -146,6 +146,21 @@ SECURITY_SYSTEM_PROMPT = {
 }
 
 
+SECURITY_RAG_SYSTEM_PROMPT = {
+    "role": "system",
+    "content": """You are a senior application security engineer.
+
+    Using the provided references, write a brief 2-3 sentence summary explaining the relevance and real-world context of the given vulnerability type.
+
+    Focus on:
+    - Industry best practices and standards
+    - Vulnerability relevence in today's world e.g: how LLM can be used to prevent this? What to watch out for when bad actor uses LLM to expliot this?
+    - Why this vulnerability matters in production systems
+
+    Keep your response concise and informative. Try to at least include some information from the refrences"""
+}
+
+
 # Pydantic models for router structured outputs
 class RouterWithQuery(BaseModel):
     """Router response with search query"""

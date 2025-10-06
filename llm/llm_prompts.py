@@ -73,12 +73,13 @@ SECURITY_SYSTEM_PROMPT = {
 
     You must respond with ONLY a JSON object. No text before or after.
 
-    Required JSON structure (6 keys):
+    Required JSON structure (7 keys):
     {
       "code_language": "...",
       "vulnerability_type": "...",
       "why_its_bad": "...",
       "exploit_scenario": "...",
+      "keywords": ["..."],
       "evidence_in_code": [
         {
           "explanation": "...",
@@ -97,6 +98,7 @@ SECURITY_SYSTEM_PROMPT = {
     - vulnerability_type: CWE identifier + short description
     - why_its_bad: 1-2 sentences on security impact
     - exploit_scenario: Concrete attack example in 1-2 sentences
+    - keywords: 1-3 Keywords relevent to the vulnerability, ordered from most relevent to least
     - evidence_in_code: Array of 1-5 evidence objects, each containing:
       - explanation: Brief explanation of the issue (≤100 chars)
       - line_number: Line number where issue appears (integer)
@@ -127,6 +129,7 @@ SECURITY_SYSTEM_PROMPT = {
       "vulnerability_type": "CWE-120: Buffer Copy without Checking Size",
       "why_its_bad": "Allows memory overwrite, leading to crashes or code execution.",
       "exploit_scenario": "An attacker inputs more than 10 characters to overflow the stack buffer.",
+      "keywords": ["buffer overflow", "stack overflow"],
       "evidence_in_code": [
         {
           "explanation": "unbounded copy into fixed-size buffer",
@@ -184,5 +187,6 @@ class VlunCheckResponse(BaseModel):
     vulnerability_type: str
     why_its_bad: str
     exploit_scenario: str
+    keywords: list[str]
     evidence_in_code: list[EvidenceBlock]
     fix: FixBlock

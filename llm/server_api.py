@@ -57,11 +57,11 @@ async def lifespan(app: FastAPI):
     
     print(f"Was .env file loaded? {was_loaded}")
     
+    # --- Loading LLM FIRST (vLLM must initialize CUDA before other libraries) ---
+    app.state.llm = LLM(llm_profile, os.getenv('MY_NOTION_TOKEN'), os.getenv('MY_NOTION_PAGE_ID'))
+
     # --- Loading ASR ---
     app.state.asr_model = Asr(asr_size)
-    
-    # --- Loading LLM ---
-    app.state.llm = LLM(llm_profile, os.getenv('MY_NOTION_TOKEN'), os.getenv('MY_NOTION_PAGE_ID'))
     
     # --- Loading TTS ---
     # app.state.tts = TTSEngine()

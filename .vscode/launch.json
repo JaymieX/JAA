@@ -12,6 +12,23 @@
         "--limit", "2",
         "--size", "small"
       ]
+    },
+    {
+      "name": "Python: LLM API(SERVER)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/llm/server_api.py",
+      "console": "integratedTerminal",
+      "args": [
+        "server"
+      ]
+    },
+    {
+      "name": "Python: LLM API(LOCAL)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/llm/server_api.py",
+      "console": "integratedTerminal"
     }
   ]
 }

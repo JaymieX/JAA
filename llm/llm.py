@@ -348,10 +348,6 @@ class LLM:
         # Get top 3 RAG results
         rag_results = self.rag_search.hybrid_search(search_query, top_k=3)
 
-        # Early out if no results found
-        if not rag_results:
-            return state
-
         # Build context from RAG results
         rag_context = "\n\n".join([
             f"Reference {i+1}: {result['text']}"

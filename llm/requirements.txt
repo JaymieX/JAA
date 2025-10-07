@@ -27,6 +27,7 @@ chromadb
 
 # Voice
 openai-whisper
+elevenlabs
 
 # Optional: For better performance
 flash-attn

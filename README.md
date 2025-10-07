@@ -14,12 +14,14 @@ JAA is an intelligent cybersecurity assistant powered by advanced AI technologie
 - **RAG (Retrieval-Augmented Generation)**: Powered by LlamaIndex and ChromaDB for efficient retrieval of cybersecurity theory knowledge and documentation
 - **Agent Architecture**: Implemented using LangGraph for intelligent routing and multi-agent orchestration
 - **High-Performance Inference**: Utilizes vLLM for optimized LLM inference with significant speed improvements
+- **Voice Interface**: OpenAI Whisper for automatic speech recognition (ASR) and ElevenLabs for text-to-speech (TTS)
 
 ### Key Features
 
 - **Code Vulnerability Analysis**: Identify and explain security vulnerabilities in code
 - **Security Knowledge Base**: Access comprehensive cybersecurity theory through RAG
 - **Intelligent Routing**: Automatically routes queries to specialized handlers (Notion, ArXiv search, vulnerability checks)
+- **Voice Chat Mode**: Speak your questions and receive audio responses powered by Whisper ASR and ElevenLabs TTS
 - **Optimized Performance**: Fast inference times with vLLM on Unix systems
 
 ## Installation & Setup
@@ -74,7 +76,8 @@ Access the application at `http://localhost:9000`
 ## Usage
 
 Once the frontend is running, you can:
-- Ask questions about cybersecurity concepts
+- **Text Chat Mode**: Type questions about cybersecurity concepts
+- **Voice Chat Mode**: Speak your questions and receive audio responses
 - Submit code for vulnerability analysis
 - Query security documentation through the RAG system
 - Get assistance with security best practices

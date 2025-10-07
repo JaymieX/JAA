@@ -347,7 +347,7 @@ header {visibility: hidden;}
 
 /* Persistent footer that stays visible during inference */
 body::after {
-    content: "Powered by Qwen2.5, Whisper, Facebook Bart Cnn and Coqui TTS | Non-commercial demo | AI agent may make mistakes - Education only";
+    content: "Powered by Qwen2.5, Whisper, Facebook Bart Cnn and elevenlabs.io | Non-commercial demo | AI agent may make mistakes - Education only";
     white-space: pre-line;
     position: fixed;
     left: 0;

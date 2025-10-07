@@ -29,6 +29,20 @@
       "request": "launch",
       "program": "${workspaceFolder}/llm/server_api.py",
       "console": "integratedTerminal"
+    },
+    {
+        "name": "Python: Streamlit",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "streamlit",
+        "console": "integratedTerminal",
+        "args": [
+            "run",
+            "${file}",
+            "--server.port",
+            "9000" // Or any desired port
+        ],
+        "justMyCode": true // Optional: Set to false to debug into Streamlit source
     }
   ]
 }

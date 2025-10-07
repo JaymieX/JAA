@@ -22,14 +22,14 @@ from fastapi import FastAPI, Form
 import sys
 
 from fastapi import FastAPI, UploadFile, File, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from asr import Asr, ModelSize
 from llm import LLM
 from llm_profiles import LLMProFile
-#from tts_engine import TTSEngine
+from tts_engine import TTSEngine
 
 
 is_local = len(sys.argv) < 2 or sys.argv[1] != "server"
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     app.state.asr_model = Asr(asr_size)
     
     # --- Loading TTS ---
-    # app.state.tts = TTSEngine()
+    app.state.tts = TTSEngine()
     
     yield
 
@@ -92,25 +92,14 @@ async def get_index():
         return "<h1>Error: index.html not found</h1><p>Please make sure the index.html file is in the same directory as your Python script.</p>", 404
 
 
-@app.get("/audio/{filename}")
+@app.get("/audio/{filename}", response_class=PlainTextResponse)
 async def get_audio(filename: str):
     audio_path = Path(__file__).resolve().parent / filename
     
-    if ".." in filename or "/" in filename:
-        return {"error": "Invalid filename"}, 400
-    
     if audio_path.is_file():
-        # Create the response object first
-        response = FileResponse(audio_path, media_type="audio/wav")
-
-        # Add headers to prevent caching on the browser side.
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-
-        return response
+        return audio_path
     
-    return {"error": "File not found"}, 404
+    return ""
 
 
 @app.post("/chat/")
@@ -159,6 +148,37 @@ async def asr_endpoint(request: Request, file: UploadFile = File(...)):
     return JSONResponse(content={
         "user_text": user_text
     })
+
+
+@app.post("/tts/")
+async def tts_endpoint(request: Request, user_text: str = Form(...)):
+    print(f"USER QUERY: {user_text}")
+    
+    tts : TTSEngine = request.app.state.tts
+
+    # If transcription is empty, don't bother with the LLM
+    if not user_text.strip():
+        print("No speech detected in audio")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No speech detected in audio."}
+        )
+
+    # TTS
+    output_filename = "response.mp3"
+    output_audio_path = tts.synthesize_speech(user_text, filename=output_filename)
+
+    if output_audio_path:
+        return JSONResponse(content={
+            "user_text": user_text,
+            "audio_url": f"/audio/{output_filename}"  # Provide a URL to the audio
+        })
+        
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to generate audio response."}
+        )
 
 
 if __name__ == "__main__":

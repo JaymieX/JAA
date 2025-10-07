@@ -1,31 +1,33 @@
+import os
 from pathlib import Path
-import torch
-from TTS.api import TTS
+from elevenlabs.client import ElevenLabs
 
 class TTSEngine:
     def __init__(self):
-        self.tts_engine = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to("cuda")
+        key = os.environ["ELEVEN_API_KEY"]
+        self.client = ElevenLabs(api_key=key)
         print("TTS Loaded")
         
         
-    def synthesize_speech(self, text, filename="response.wav"):
-        try:
-            # Get the directory where this script lives
-            script_dir = Path(__file__).resolve().parent
-            file_path = script_dir / filename
-            
-            self.tts_engine.tts_to_file(
-                text=text,
-                file_path=str(file_path),
-                speaker="Ana Florence",  # A good, standard female voice
-                language="en"
-            )
+    def synthesize_speech(self, text, filename="response.mp3"):
+        audio_generator  = self.client.text_to_speech.convert(
+            voice_id="XrExE9yKIg1WjnnlVkGX", # Informative voice
+            text=text,
+            model_id="eleven_multilingual_v2",
+            voice_settings={
+                "stability":        0.3,
+                "similarity_boost": 0.75,
+                "style":            0.9
+            }
+        )
 
-            return filename
-        
-        except Exception as e:
-            # Print a more detailed error message
-            print(f"Error during TTS synthesis: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        # Ensure filepath is in the same directory as this script
+        script_dir = Path(__file__).resolve().parent
+        filepath = script_dir / filename
+
+        with open(filepath, "wb") as f:
+            for chunk in audio_generator:
+                if chunk:  # Safety check
+                    f.write(chunk)
+
+        return str(filepath)

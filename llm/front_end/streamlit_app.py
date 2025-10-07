@@ -1,3 +1,4 @@
+from pathlib import Path
 import streamlit as st
 import requests
 import json
@@ -16,9 +17,24 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+def autoplay_audio(file_path: str):
+    with open(file_path, "rb") as f:
+        data = f.read()
+        b64 = base64.b64encode(data).decode()
+        md = f"""
+            <audio controls autoplay="true">
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+            </audio>
+            """
+        st.markdown(
+            md,
+            unsafe_allow_html=True,
+        )
+
 # Load custom CSS
 def load_css():
-    with open('streamlit_style.css') as f:
+    css = Path(__file__).resolve().parent / 'streamlit_style.css'
+    with open(css) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 load_css()
@@ -39,6 +55,9 @@ if "audio_processed" not in st.session_state:
 
 if "audio_key" not in st.session_state:
     st.session_state.audio_key = 0
+
+if "pending_audio" not in st.session_state:
+    st.session_state.pending_audio = None
 
 # Header with floating sparkles
 st.markdown("""
@@ -88,6 +107,11 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# Play pending audio if available
+if st.session_state.pending_audio:
+    autoplay_audio(st.session_state.pending_audio)
+    st.session_state.pending_audio = None
+
 # Function to format messages (similar to original HTML version)
 def format_message(text):
     """Format message text for better display"""
@@ -125,6 +149,7 @@ def send_text_chat(user_input):
         return "**Error:** Request timed out. The server might be processing a complex query."
     except Exception as e:
         return f"**Error:** {str(e)}"
+
 
 # Function to transcribe audio (ASR only)
 def transcribe_audio(audio_data):
@@ -221,9 +246,25 @@ else:
                 with st.spinner("Processing..."):
                     bot_response = send_text_chat(user_text)
                 st.markdown(bot_response)
-
+                
             # Add assistant response
             st.session_state.messages.append({"role": "assistant", "content": bot_response})
+            
+            # Step 3: Get audio path and store for playback after rerun
+            try:
+                tts_response = requests.post(
+                    f"{st.session_state.api_url}/tts/",
+                    data={"user_text": bot_response},
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    timeout=30
+                )
+                    
+                if tts_response.status_code == 200:
+                    audio_response = requests.get(f"{st.session_state.api_url}/audio/response.mp3")
+                    if audio_response.status_code == 200:
+                        st.session_state.pending_audio = audio_response.text
+            except Exception as e:
+                st.error(f"TTS Error: {str(e)}")
 
         # Reset for next recording
         st.session_state.audio_processed = False

@@ -32,23 +32,47 @@ from llm_profiles import LLMProFile
 from tts_engine import TTSEngine
 
 
-is_local = len(sys.argv) < 2 or sys.argv[1] != "server"
+# Parse command line arguments
+is_server = "--server" in sys.argv
+use_elevenlabs = "--11labs" in sys.argv
+is_local = not is_server
+
+# Parse ASR size argument (--asr=small|medium|large-v2|large-v3)
+asr_size = ModelSize.SMALL  # Default
+for arg in sys.argv:
+    if arg.startswith("--asr="):
+        asr_value = arg.split("=")[1].upper().replace("-", "_")
+        try:
+            asr_size = ModelSize[asr_value]
+        except KeyError:
+            print(f"Warning: Invalid ASR size '{arg.split('=')[1]}'. Using default: small")
+
+# Parse LLM profile argument (--llm=small|large|super_large)
+llm_profile = LLMProFile.SMALL  # Default
+for arg in sys.argv:
+    if arg.startswith("--llm="):
+        llm_value = arg.split("=")[1].upper()
+        try:
+            llm_profile = LLMProFile[llm_value]
+        except KeyError:
+            print(f"Warning: Invalid LLM profile '{arg.split('=')[1]}'. Using default: small")
+
+# Validate: local mode can only use SMALL LLM
+if is_local and llm_profile != LLMProFile.SMALL:
+    print("ERROR: Local mode (without --server) can only use --llm=small")
+    print("Your machine won't be able to handle larger models.")
+    print("Either use --llm=small or add --server flag for server deployment.")
+    sys.exit(1)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This code runs ONCE when the Uvicorn worker starts
     print("--- Lifespan started... ---")
-    
-    # --- Profiles ---
-    if is_local:
-        print("--- Using local setup... ---")
-        asr_size    : ModelSize  = ModelSize.SMALL
-        llm_profile : LLMProFile = LLMProFile.SMALL
-    else:
-        print("--- Using server setup... ---")
-        asr_size    : ModelSize  = ModelSize.SMALL
-        llm_profile : LLMProFile = LLMProFile.SUPER_LARGE
+    print(f"--- Mode: {'Server' if is_server else 'Local'} ---")
+    print(f"--- ASR Model: {asr_size.value} ---")
+    print(f"--- LLM Profile: {llm_profile.name} ---")
+    print(f"--- TTS Engine: {'ElevenLabs' if use_elevenlabs else 'Edge TTS'} ---")
     
     # -- Env --
     script_dir = Path(__file__).resolve().parent
@@ -64,7 +88,7 @@ async def lifespan(app: FastAPI):
     app.state.asr_model = Asr(asr_size)
     
     # --- Loading TTS ---
-    app.state.tts = TTSEngine()
+    app.state.tts = TTSEngine(use_elevenlabs=use_elevenlabs)
     
     yield
 

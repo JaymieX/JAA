@@ -1,0 +1,13 @@
+# Core ML and AI
+transformers
+peft
+accelerate
+bitsandbytes
+vllm
+
+#eval
+nltk
+rouge_score
+
+# Optional: For better performance
+flash-attn

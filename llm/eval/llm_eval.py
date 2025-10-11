@@ -103,6 +103,9 @@ def evaluate_model(model_wrapper, conversations, tokenizer, use_lora=False, max_
                     tokenize=False,
                     add_generation_prompt=True
                 )
+                
+                print(f"{prompt}")
+                print("======================================================")
 
                 # Generate response
                 output = model_wrapper(

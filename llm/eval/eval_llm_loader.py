@@ -29,10 +29,11 @@ class VLLMWrapper:
 
         # Convert transformers GenerationConfig to vLLM SamplingParams
         sampling_params = SamplingParams(
-            max_tokens         = generation_config.max_new_tokens if generation_config else 512,
-            temperature        = 0.0 if (generation_config and not generation_config.do_sample) else 0.7,
-            repetition_penalty = generation_config.repetition_penalty if generation_config else 1.0,
-            stop_token_ids     = generation_config.eos_token_id if generation_config else None
+            max_tokens=512,
+            temperature=0.0,
+            top_p=1.0,
+            repetition_penalty=1.0,
+            stop_token_ids=generation_config.eos_token_id if generation_config else None
         )
         
         lora_request = self.lora_request if use_lora else None

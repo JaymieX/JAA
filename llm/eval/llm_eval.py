@@ -78,10 +78,10 @@ def evaluate_model(model_wrapper, conversations, tokenizer, use_lora=False, max_
         'rouge1_f1': [],
         'rouge2_f1': [],
         'rougeL_f1': [],
-        'bleu': []
+        'bleu': [],
+        'exact_match': []  # Add exact match
     }
 
-    # Sample randomly with fixed seed if max_samples specified
     if max_samples and max_samples < len(conversations):
         random.seed(seed)
         eval_conversations = random.sample(conversations, max_samples)
@@ -90,39 +90,48 @@ def evaluate_model(model_wrapper, conversations, tokenizer, use_lora=False, max_
         eval_conversations = conversations
 
     for idx, conversation in enumerate(eval_conversations):
-        # Parse conversation
-        system_msg = conversation[0]['content']
-        user_msg = conversation[1]['content']
-        reference_response = conversation[2]['content']
+        # Find all assistant responses to evaluate
+        for i in range(len(conversation)):
+            if conversation[i]['role'] == 'assistant':
+                # Build context up to this point
+                context = conversation[:i]
+                reference_response = conversation[i]['content']
 
-        # Format prompt
-        prompt = format_prompt_for_model(system_msg, user_msg, tokenizer)
+                # Format prompt with all context
+                prompt = tokenizer.apply_chat_template(
+                    context,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
 
-        # Generate response
-        output = model_wrapper(
-            prompt,
-            generation_config=None,
-            return_full_text=False,
-            use_lora=use_lora
-        )
+                # Generate response
+                output = model_wrapper(
+                    prompt,
+                    generation_config=None,
+                    return_full_text=False,
+                    use_lora=use_lora
+                )
 
-        generated_response = output[0]['generated_text'].strip()
+                generated_response = output[0]['generated_text'].strip()
 
-        # Calculate metrics
-        metrics = calculate_metrics(
-            reference_response,
-            generated_response,
-            rouge_scorer_obj,
-            smoothing
-        )
+                # Calculate metrics
+                metrics = calculate_metrics(
+                    reference_response,
+                    generated_response,
+                    rouge_scorer_obj,
+                    smoothing
+                )
 
-        # Store metrics
-        for key in all_metrics:
-            all_metrics[key].append(metrics[key])
+                # Add exact match
+                exact = 1.0 if reference_response.strip() == generated_response.strip() else 0.0
 
-        # Progress update
+                # Store metrics
+                for key in ['rouge1_f1', 'rouge2_f1', 'rougeL_f1', 'bleu']:
+                    all_metrics[key].append(metrics[key])
+                all_metrics['exact_match'].append(exact)
+
         if (idx + 1) % 10 == 0:
-            print(f"Processed {idx + 1}/{len(eval_conversations)} samples...")
+            print(f"Processed {idx + 1}/{len(eval_conversations)} conversations...")
 
     # Calculate averages
     avg_metrics = {
@@ -135,6 +144,7 @@ def evaluate_model(model_wrapper, conversations, tokenizer, use_lora=False, max_
     print(f"  ROUGE-2 F1: {avg_metrics['rouge2_f1']:.4f}")
     print(f"  ROUGE-L F1: {avg_metrics['rougeL_f1']:.4f}")
     print(f"  BLEU Score: {avg_metrics['bleu']:.4f}")
+    print(f"  Exact Match: {avg_metrics['exact_match']:.2%}")  # Show exact match
 
     return {
         'model_type': model_type,
@@ -161,7 +171,7 @@ def main():
 
     # Evaluate on a subset for demo (adjust max_samples as needed)
     # Set to None to evaluate on entire dataset
-    max_samples = 100  # Start with 100 samples for quick demo
+    max_samples = 30  # Start with N samples for quick demo
 
     print(f"\nEvaluating on {max_samples if max_samples else 'all'} samples...")
 

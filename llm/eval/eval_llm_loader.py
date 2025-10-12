@@ -29,11 +29,12 @@ class VLLMWrapper:
 
         # Convert transformers GenerationConfig to vLLM SamplingParams
         sampling_params = SamplingParams(
-            max_tokens=512,
+            max_tokens=600,
             temperature=0.0,
             top_p=1.0,
             repetition_penalty=1.0,
-            stop_token_ids=generation_config.eos_token_id if generation_config else None
+            stop_token_ids=generation_config.eos_token_id if generation_config else None,
+            stop=["User:", "<|im_start|>", "<|im_end|>"]
         )
         
         lora_request = self.lora_request if use_lora else None

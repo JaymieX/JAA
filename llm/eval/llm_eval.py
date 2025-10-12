@@ -37,20 +37,43 @@ def format_prompt_for_model(system_msg, user_msg, tokenizer):
     return prompt
 
 
-def calculate_metrics(reference, candidate, rouge_scorer_obj, smoothing):
+def calculate_metrics(reference, candidate, rouge_scorer_obj, smoothing, max_tokens=600):
     """Calculate ROUGE and BLEU scores"""
+    
+    # Truncate reference to match generation limit
+    ref_tokens = reference.split()
+    if len(ref_tokens) > max_tokens:
+        ref_tokens = ref_tokens[:max_tokens]
+        reference = ' '.join(ref_tokens)
+    
+    # Also truncate candidate to be fair
+    cand_tokens = candidate.split()
+    if len(cand_tokens) > max_tokens:
+        cand_tokens = cand_tokens[:max_tokens]
+        candidate = ' '.join(cand_tokens)
+
+    def normalize(text):
+        text = text.lower()
+
+        import string
+        text = text.translate(str.maketrans('', '', string.punctuation))
+        return text
+
+    ref_normalized  = normalize(reference)
+    cand_normalized = normalize(candidate)
 
     # ROUGE scores
-    rouge_scores = rouge_scorer_obj.score(reference, candidate)
+    rouge_scores = rouge_scorer_obj.score(ref_normalized, cand_normalized)
 
     # BLEU score (tokenize by whitespace)
-    reference_tokens = reference.split()
-    candidate_tokens = candidate.split()
+    reference_tokens = ref_normalized.split()
+    candidate_tokens = cand_normalized.split()
 
     # Use smoothing to handle edge cases
     bleu_score = sentence_bleu(
         [reference_tokens],
         candidate_tokens,
+        weights=(0.5, 0.3, 0.15, 0.05),
         smoothing_function=smoothing.method4
     )
 
@@ -103,9 +126,6 @@ def evaluate_model(model_wrapper, conversations, tokenizer, use_lora=False, max_
                     tokenize=False,
                     add_generation_prompt=True
                 )
-                
-                print(f"{prompt}")
-                print("======================================================")
 
                 # Generate response
                 output = model_wrapper(
@@ -174,7 +194,7 @@ def main():
 
     # Evaluate on a subset for demo (adjust max_samples as needed)
     # Set to None to evaluate on entire dataset
-    max_samples = 30  # Start with N samples for quick demo
+    max_samples = 50  # Start with N samples for quick demo
 
     print(f"\nEvaluating on {max_samples if max_samples else 'all'} samples...")
 

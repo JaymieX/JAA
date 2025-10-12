@@ -1,6 +1,7 @@
 # JAA - Cybersecurity AI Agent
 
 ![Demo](demo.png)
+![SFT](sft_eval.png)
 
 ## Overview
 

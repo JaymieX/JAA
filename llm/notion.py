@@ -1,4 +1,6 @@
 from typing import Optional
+
+from langchain_core.messages import HumanMessage, AIMessage
 from notion_client import Client
 import datetime
 
@@ -68,24 +70,31 @@ class Notion:
         - Assistant messages → normal paragraph text
         """
         blocks = []
-        
+
         for turn in conversation_history:
-            if turn["role"] == "user":
-                blocks.append({
-                    "object": "block",
-                    "type": "heading_3",
-                    "heading_3": {
-                        "rich_text": [{"type": "text", "text": {"content": turn["content"]}}]
-                    }
-                })
-                
-            elif turn["role"] == "assistant":
-                blocks.append({
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {
-                        "rich_text": [{"type": "text", "text": {"content": turn["content"]}}]
-                    }
-                })
-                
+            if isinstance(turn, HumanMessage):
+                prefix = "You Said:"
+            elif isinstance(turn, AIMessage):
+                prefix = "Agent Said:"
+            else:
+                continue
+
+            # heading for prefix
+            blocks.append({
+                "object": "block",
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [{"type": "text", "text": {"content": prefix}}]
+                }
+            })
+
+            # normal paragraph for the message
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": turn.content}}]
+                }
+            })
+
         return blocks

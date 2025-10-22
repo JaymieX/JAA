@@ -1,3 +1,4 @@
+import os
 import platform
 from pydantic import BaseModel, TypeAdapter
 from transformers import GenerationConfig
@@ -58,7 +59,7 @@ class LLM:
             self.rag_search = None
             
         self.summarizer = Summarizer()
-        self.notion     = Notion(notion_token, notion_page_id)
+        self.notion     = Notion(os.environ["NOTION_API_KEY"], os.environ["NOTION_PAGE_ID"])
         
         self.is_notion_connected = self.notion.is_connected()
         

@@ -7,6 +7,7 @@ from typing import Optional, Type, TypedDict, Literal, Union, Annotated
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import RemoveMessage
 from json_repair import repair_json
 
 
@@ -424,14 +425,32 @@ class LLM:
         Returns:
             Response text (or generator if stream=True)
         """
+        # Config for thread-based persistence
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Check if user wants to clear conversation history
+        if user_text.strip().lower() == "clear":
+            # Get current state to access message IDs
+            current_state = self.workflow.get_state(config)
+            messages = current_state.values.get("conversation_history", [])
+
+            # Create RemoveMessage for each message in history
+            remove_messages = [RemoveMessage(id=msg.id) for msg in messages if hasattr(msg, 'id')]
+
+            # Update state to remove all messages
+            if remove_messages:
+                self.workflow.update_state(
+                    config,
+                    {"conversation_history": remove_messages}
+                )
+
+            return ""
+
         # Create initial state - only pass required inputs
         initial_state = {
             "user_input": user_text,
             "conversation_history": [{"role": "user", "content": user_text}]
         }
-
-        # Config for thread-based persistence
-        config = {"configurable": {"thread_id": thread_id}}
 
         # Run LangGraph workflow
         if stream:

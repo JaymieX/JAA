@@ -180,6 +180,12 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# IDEA
+.idea
+
+# Claude
+.claude
+
 # Project
 data/
 temp/
